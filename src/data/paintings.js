@@ -35,11 +35,29 @@ export const paintings = [
     theme: { brocade: '#1d3a44', ribbon: '#8f2e25', tag: '#2c4842' },
   },
   {
-    id: 'scroll-2',
+    id: 'hanxizai-yeyan',
     order: '贰',
-    title: '画卷待启',
-    available: false,
-    theme: { brocade: '#3a2836', ribbon: '#6d5a3a', tag: '#43333c' },
+    title: '韩熙载夜宴图',
+    available: true,
+    image: {
+      src: `${base}paintings/hanxizai-yeyan/hanging.jpg`,
+      width: 900,
+      height: 1317,
+    },
+    panorama: `${base}paintings/hanxizai-yeyan/panorama.jpg`,
+    info: {
+      dynasty: '五代南唐',
+      artist: '顾闳中（宋摹）',
+      medium: '绢本设色',
+      size: '28.7 × 335.5 cm',
+      collection: '北京故宫博物院藏',
+      tags: ['人物故实', '夜宴长卷', '工笔重彩'],
+      summary:
+        '南唐后主李煜命顾闳中夜窥韩熙载府上宴乐，目识心记，绘成此卷。全图以屏风隔为五段：听乐、观舞、歇息、清吹、散宴，烛光衣袂间，宾客、乐伎、欢场与疏离并置。今传宋人摹本，笔致精微，为传世人物画巨迹。',
+      note: '原作为横向手卷，此处立轴所示为画心局部（观舞一段）。',
+      credit: '图像：Wikimedia Commons（公有领域）',
+    },
+    theme: { brocade: '#3a2836', ribbon: '#8f2e25', tag: '#43333c' },
   },
   {
     id: 'scroll-3',
