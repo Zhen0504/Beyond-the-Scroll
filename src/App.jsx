@@ -1,0 +1,43 @@
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import SvgDefs from './components/SvgDefs.jsx';
+import SilkVeil from './components/SilkVeil.jsx';
+import EntryScene from './scenes/entry/EntryScene.jsx';
+
+// 画境按需加载：入口页不必下载 three.js
+const WorldScene = lazy(() => import('./scenes/world/WorldScene.jsx'));
+
+const VEIL_MS = 1000;
+
+/** 场景切换：卷轴入口 ⇄ 画境，切换时以一层绢色帷幕过渡 */
+export default function App() {
+  // 地址带 #jiangshan 时直接进入画境（便于演示与调试）
+  const [scene, setScene] = useState(() =>
+    window.location.hash === '#jiangshan' ? { name: 'world', id: 'jiangshan-qiuse' } : { name: 'entry' },
+  );
+  const [veil, setVeil] = useState(false);
+  const timer = useRef(0);
+
+  const go = useCallback((next) => {
+    setVeil(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setScene(next);
+      requestAnimationFrame(() => setVeil(false));
+    }, VEIL_MS);
+  }, []);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  return (
+    <>
+      <SvgDefs />
+      {scene.name === 'entry' && <EntryScene onEnterWorld={(id) => go({ name: 'world', id })} />}
+      {scene.name === 'world' && (
+        <Suspense fallback={<SilkVeil shown />}>
+          <WorldScene paintingId={scene.id} onExit={() => go({ name: 'entry' })} />
+        </Suspense>
+      )}
+      <SilkVeil shown={veil} />
+    </>
+  );
+}

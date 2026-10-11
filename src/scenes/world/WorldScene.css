@@ -1,0 +1,342 @@
+.world {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #e3d4ae;
+  color: #2c2620;
+}
+
+.world__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world--ready .world__canvas,
+.world--paused .world__canvas {
+  cursor: pointer;
+}
+
+/* 准星：极淡的一点墨 */
+.world__reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: rgba(40, 32, 24, 0.45);
+  pointer-events: none;
+}
+
+/* ---------- 人物闲谈气泡 ---------- */
+.world__bubbles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.npc-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 15em;
+  padding: 7px 13px 8px;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  color: #2c2620;
+  background:
+    var(--tex-grain),
+    linear-gradient(180deg, rgba(248, 242, 226, 0.96), rgba(238, 228, 204, 0.96));
+  background-size: 240px 240px, auto;
+  border: 1px solid rgba(90, 70, 44, 0.45);
+  box-shadow: 0 4px 14px rgba(50, 36, 18, 0.22);
+  transform-origin: 12% 100%;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  white-space: normal;
+  will-change: transform;
+}
+
+/* 气泡尾巴，指向说话的人 */
+.npc-bubble::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: rgba(238, 228, 204, 0.96);
+  border-right: 1px solid rgba(90, 70, 44, 0.45);
+  border-bottom: 1px solid rgba(90, 70, 44, 0.45);
+  transform: rotate(45deg) skew(8deg, 8deg);
+}
+
+.npc-bubble.is-shown {
+  opacity: 1;
+}
+
+.npc-bubble.is-new span {
+  display: inline-block;
+  animation: bubble-in 0.4s ease;
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ---------- 交互提示 ---------- */
+.world__prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 9vh;
+  margin: 0;
+  padding: 8px 22px;
+  transform: translateX(-50%);
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  white-space: nowrap;
+  color: #2c2620;
+  background: linear-gradient(90deg, transparent, rgba(240, 230, 206, 0.85) 18% 82%, transparent);
+  pointer-events: none;
+  animation: overlay-in 0.4s ease;
+}
+
+/* ---------- 左上题签 ---------- */
+.world__badge {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.world__badge-seal {
+  writing-mode: vertical-rl;
+  padding: 0.35em 0.22em;
+  border-radius: 2px;
+  background: var(--cinnabar);
+  color: #f6e9d4;
+  font-family: var(--font-brush);
+  font-size: 15px;
+  line-height: 1.05;
+  filter: url(#rough-edge);
+}
+
+.world__badge-title {
+  font-family: var(--font-brush);
+  font-size: 24px;
+  letter-spacing: 0.18em;
+  color: rgba(44, 36, 28, 0.82);
+  text-shadow: 0 0 12px rgba(240, 228, 200, 0.8);
+}
+
+/* ---------- 区域题名：竖排浮现 ---------- */
+.world__zone {
+  position: absolute;
+  top: 14vh;
+  right: 7vw;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 14px;
+  pointer-events: none;
+  animation: zone-show 5.2s ease forwards;
+}
+
+.world__zone-name {
+  writing-mode: vertical-rl;
+  font-family: var(--font-brush);
+  font-size: clamp(36px, 6vh, 60px);
+  letter-spacing: 0.2em;
+  color: rgba(36, 30, 24, 0.86);
+  text-shadow: 0 0 24px rgba(240, 230, 205, 0.9);
+}
+
+.world__zone-verse {
+  writing-mode: vertical-rl;
+  margin-top: 3em;
+  font-size: 15px;
+  letter-spacing: 0.5em;
+  color: rgba(50, 42, 32, 0.7);
+  text-shadow: 0 0 12px rgba(240, 230, 205, 0.9);
+}
+
+@keyframes zone-show {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  18% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  78% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ---------- 覆盖层 ---------- */
+.world__overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 50%, rgba(236, 224, 196, 0.15), rgba(60, 48, 32, 0.35));
+  animation: overlay-in 0.6s ease;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.world__overlay--silk {
+  align-content: center;
+  gap: 22px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255, 250, 235, 0.35), transparent 70%),
+    var(--tex-grain),
+    linear-gradient(180deg, #e9dcbc, #dfcfa9);
+  background-size: auto, 240px 240px, auto;
+}
+
+.world__load-title {
+  margin: 0;
+  font-family: var(--font-brush);
+  font-weight: 400;
+  font-size: clamp(42px, 7vh, 72px);
+  letter-spacing: 0.2em;
+  color: #2e2720;
+}
+
+.world__load-bar {
+  width: min(320px, 60vw);
+  height: 3px;
+  background: rgba(46, 39, 32, 0.12);
+  overflow: hidden;
+}
+
+.world__load-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(46, 39, 32, 0.2), rgba(46, 39, 32, 0.85));
+  transform-origin: left;
+  transition: transform 0.6s ease;
+}
+
+.world__load-label {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: rgba(46, 39, 32, 0.7);
+}
+
+.world__card {
+  position: relative;
+  min-width: min(420px, 86vw);
+  padding: 38px 44px 34px;
+  text-align: center;
+  background:
+    var(--tex-grain),
+    linear-gradient(180deg, rgba(240, 230, 206, 0.95), rgba(228, 214, 182, 0.95));
+  background-size: 240px 240px, auto;
+  box-shadow: 0 20px 60px rgba(40, 30, 16, 0.35);
+}
+
+.world__card::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(120, 90, 50, 0.35);
+  pointer-events: none;
+}
+
+.world__card-eyebrow {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.6em;
+  text-indent: 0.6em;
+  color: var(--cinnabar);
+}
+
+.world__card-title {
+  margin: 0 0 22px;
+  font-family: var(--font-brush);
+  font-weight: 400;
+  font-size: 46px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  color: #2c2620;
+}
+
+.world__card-text {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: rgba(44, 38, 32, 0.8);
+}
+
+.world__keys {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: center;
+  gap: 10px 32px;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: rgba(44, 38, 32, 0.8);
+}
+
+.world__keys li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.world__keys kbd {
+  min-width: 4.4em;
+  padding: 2px 8px;
+  border: 1px solid rgba(80, 60, 36, 0.4);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: #4a3a28;
+}
+
+.world__actions {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.world__actions .ink-btn {
+  border-color: rgba(60, 45, 30, 0.5);
+  color: #3c2f22;
+}
+
+.world__actions .ink-btn:hover {
+  border-color: #3c2f22;
+  color: #1f1812;
+}

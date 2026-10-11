@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="4" y="4" width="56" height="56" rx="6" fill="#a7362b"/>
+  <rect x="9" y="9" width="46" height="46" rx="3" fill="none" stroke="#f3e4cc" stroke-width="2.5"/>
+  <text x="32" y="44" font-size="32" text-anchor="middle" fill="#f3e4cc" font-family="KaiTi, STKaiti, serif">画</text>
+</svg>

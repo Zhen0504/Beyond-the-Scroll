@@ -1,0 +1,41 @@
+/* ========== 设计令牌：色彩取自传统矿物颜料与装裱材料 ========== */
+:root {
+  /* 墨色 · 背景 */
+  --ink-950: #080a0b;
+  --ink-900: #0c1012;
+  --ink-800: #121718;
+  --ink-700: #1b2122;
+
+  /* 纸绢 · 装裱 */
+  --xuan: #e9dfc7;          /* 宣纸 */
+  --silk: #d6ccb0;          /* 绫绢 */
+  --silk-deep: #b9ab86;     /* 隔水 */
+  --painting-ground: #c9b386;
+
+  /* 点缀 */
+  --cinnabar: #a7362b;      /* 朱砂 */
+  --gold: #c9a86a;
+  --gold-soft: #e2cc98;
+  --cord: #8a3a2c;
+
+  /* 文字 */
+  --text: #e8dec6;
+  --text-dim: #a99d84;
+
+  --font-brush: 'Ma Shan Zheng', 'STXingkai', 'KaiTi', 'STKaiti', serif;
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
+
+  /* 纸张颗粒（深色杂点，multiply 叠加在纸上） */
+  --tex-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* 纸张纤维（拉长的噪声，模拟宣纸长纤维） */
+  --tex-fiber: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .35' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .32 0 0 0 0 .2 0 0 0 1.4 -.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  /* 背景颗粒（浅色杂点，overlay 叠加在暗背景上） */
+  --tex-grain-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* 可过渡的自定义属性：用于垂签摆幅等平滑变化 */
+@property --amp {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}

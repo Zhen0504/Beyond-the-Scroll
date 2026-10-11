@@ -1,0 +1,171 @@
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.backdrop__sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 44%, rgba(128, 108, 78, 0.2), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 18%, rgba(200, 186, 150, 0.07), transparent 70%),
+    linear-gradient(180deg, #0b1012 0%, #11191a 38%, #182020 66%, #0e1211 100%);
+}
+
+/* ---------- 明月 ---------- */
+.backdrop__moon {
+  position: absolute;
+  top: 11vh;
+  right: 17vw;
+  width: 11vh;
+  height: 11vh;
+}
+
+.backdrop__moon i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 58%, rgba(170, 150, 110, 0.22) 0 8%, transparent 14%),
+    radial-gradient(circle at 34% 64%, rgba(170, 150, 110, 0.18) 0 6%, transparent 11%),
+    radial-gradient(circle at 52% 30%, rgba(170, 150, 110, 0.14) 0 5%, transparent 9%),
+    radial-gradient(circle at 38% 36%, #f6eedb 0%, #e5d8b6 48%, #c9b78d 100%);
+  box-shadow:
+    0 0 40px 8px rgba(240, 224, 180, 0.17),
+    0 0 160px 60px rgba(240, 224, 180, 0.06);
+  opacity: 0.82;
+}
+
+/* ---------- 远山 ---------- */
+.backdrop__mountains {
+  position: absolute;
+  left: -3%;
+  bottom: 0;
+  width: 106%;
+  /* 占满视口高度，避免 slice 缩放时高峰被顶边截平 */
+  height: 100%;
+}
+
+/* ---------- 云雾 ---------- */
+.backdrop__mist {
+  position: absolute;
+  width: 85vw;
+  height: 28vh;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(196, 204, 196, 0.1), transparent);
+  filter: blur(10px);
+  animation: mist-drift 90s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.backdrop__mist--high {
+  top: 14vh;
+  left: 40vw;
+  width: 60vw;
+  height: 12vh;
+  opacity: 0.7;
+  animation-duration: 120s;
+}
+
+.backdrop__mist--a {
+  bottom: 22vh;
+  left: -20vw;
+  animation-duration: 95s;
+}
+
+.backdrop__mist--b {
+  bottom: 8vh;
+  left: 35vw;
+  animation-duration: 75s;
+  animation-direction: alternate-reverse;
+}
+
+.backdrop__mist--c {
+  bottom: -6vh;
+  left: 0;
+  width: 110vw;
+  height: 30vh;
+  background: radial-gradient(closest-side, rgba(170, 180, 172, 0.12), transparent);
+  animation-duration: 110s;
+}
+
+@keyframes mist-drift {
+  from {
+    transform: translateX(-12vw);
+  }
+  to {
+    transform: translateX(12vw);
+  }
+}
+
+/* ---------- 飞鸟 ---------- */
+.backdrop__birds {
+  position: absolute;
+  top: 21vh;
+  left: 0;
+  width: 70px;
+  animation: birds-fly 52s linear infinite;
+  animation-delay: -14s;
+}
+
+.backdrop__birds svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.bird {
+  fill: none;
+  stroke: rgba(205, 198, 178, 0.42);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bird-flap 0.9s ease-in-out infinite alternate;
+}
+
+.bird--2 {
+  animation-delay: -0.3s;
+}
+
+.bird--3 {
+  animation-delay: -0.55s;
+}
+
+@keyframes birds-fly {
+  from {
+    transform: translate(-12vw, 4vh);
+  }
+  to {
+    transform: translate(112vw, -5vh);
+  }
+}
+
+@keyframes bird-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(-0.4);
+  }
+}
+
+/* ---------- 质感 ---------- */
+.backdrop__grain {
+  position: absolute;
+  inset: 0;
+  background-image: var(--tex-grain-light);
+  background-size: 200px 200px;
+  mix-blend-mode: overlay;
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 42%, rgba(0, 0, 0, 0.72) 100%);
+  pointer-events: none;
+}

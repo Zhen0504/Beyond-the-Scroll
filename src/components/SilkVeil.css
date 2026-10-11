@@ -1,0 +1,18 @@
+.silk-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255, 250, 235, 0.35), transparent 70%),
+    var(--tex-grain),
+    linear-gradient(180deg, #e9dcbc, #dfcfa9);
+  background-size: auto, 240px 240px, auto;
+}
+
+.silk-veil.is-shown {
+  opacity: 1;
+  pointer-events: auto;
+}
