@@ -45,11 +45,14 @@ export const SCREEN_GAPS = SCREENS.map((s) => ({
   id: s.id,
   x: s.x,
   side: s.gap,
-  // 通道在 z 上的范围：以南侧为例，屏风占北半，南侧留出约 3 m
+  // 通道在 z 上的范围：屏风偏靠封闭侧后，开口一侧约 4.5 m
   zRange: s.gap === 'south'
     ? [s.z + s.length / 2 + 0.2, HALL.z1 - 0.9]
     : [HALL.z0 + 0.9, s.z - s.length / 2 - 0.2],
-  width: 3.0,
+  width: Math.abs(
+    (s.gap === 'south' ? HALL.z1 - 0.9 : s.z - s.length / 2 - 0.2)
+    - (s.gap === 'south' ? s.z + s.length / 2 + 0.2 : HALL.z0 + 0.9),
+  ),
 }));
 
 /**
@@ -105,11 +108,12 @@ export const LIGHTING = {
  * 供人物行走（puppets.js 的侍女 / 童仆）与后续陈设避让使用。
  */
 export const AISLES = [
-  { id: 'main', points: [[1.8, 3.9], [11.0, 3.9], [13.0, -3.4], [21.4, -3.4], [24.0, 3.6], [30.6, 3.6], [33.0, -3.5], [40.4, -3.5], [43.0, 3.5], [48.4, 3.5]], width: 2.6 },
+  // 主廊按屏风开口折返：南(s1)→北(s2)→南(s3)→北(s4)→南；清吹北廊贴壁绕过长榻
+  { id: 'main', points: [[1.8, 3.9], [11.0, 3.9], [13.0, -3.8], [21.4, -3.8], [24.0, 3.6], [30.6, 3.6], [32.5, 3.5], [40.6, -4.15], [43.0, 3.5], [48.4, 3.5]], width: 2.6 },
   { id: 'tingyue', points: [[5.6, 3.9], [5.4, 1.6]], width: 2.0 },
-  { id: 'guanwu', points: [[21.0, -3.4], [17.4, -3.0]], width: 1.8 },
+  { id: 'guanwu', points: [[21.0, -3.8], [17.4, -3.0]], width: 1.8 },
   { id: 'zhanxie', points: [[27.0, 3.6], [27.6, 1.4], [28.4, 0.2]], width: 1.8 },
-  { id: 'qingchui', points: [[36.6, -3.5], [36.6, -0.6]], width: 2.0 },
+  { id: 'qingchui', points: [[36.6, 3.4], [36.6, 0.8]], width: 2.0 },
   { id: 'sanyan', points: [[45.4, 3.5], [45.2, 1.4]], width: 2.0 },
 ];
 

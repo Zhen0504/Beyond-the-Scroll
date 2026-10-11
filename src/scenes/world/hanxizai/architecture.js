@@ -221,9 +221,13 @@ function seat(spec, walkMap) {
     parts.push(box(0.4, 0.55, 0.04, C.plasterDeep, x, 0.5, z - 0.26, MAT.cloth));
     block(walkMap, x, z, 0.32, 0.3, 0, 1.0);
   } else {
-    parts.push(cyl(0.22, 0.38, C.woodMid, x, 0, z, 10, MAT.wood));
-    parts.push(cyl(0.24, 0.05, C.silkCream, x, 0.38, z, 10, MAT.cloth));
-    walkMap.addCircle(x, z, 0.28, -0.2, 0.55);
+    // 椅墩：鼓式圆墩（底座 → 鼓腹 → 腰束锦带 → 软褥），比细柱更易辨认
+    parts.push(cyl(0.28, 0.07, C.lacquer, x, 0, z, 12, MAT.wood));
+    parts.push(cyl(0.24, 0.3, C.woodMid, x, 0.07, z, 12, MAT.wood));
+    parts.push(cyl(0.29, 0.05, C.lacquerRed, x, 0.2, z, 12, MAT.wood));
+    parts.push(cyl(0.26, 0.08, C.silkCream, x, 0.37, z, 12, MAT.cloth));
+    parts.push(cyl(0.18, 0.03, C.celadon, x, 0.45, z, 10, MAT.cloth));
+    walkMap.addCircle(x, z, 0.32, -0.2, 0.6);
   }
   return parts;
 }
@@ -245,7 +249,7 @@ function longBench(spec, walkMap) {
 }
 
 function screenFrame(spec, walkMap) {
-  const { x, z, length, height, panels } = spec;
+  const { x, z, length, height, panels, gap } = spec;
   const parts = [];
   const y0 = 0.08;
   const pw = length / panels;
@@ -256,10 +260,22 @@ function screenFrame(spec, walkMap) {
     const pz = z - length / 2 + i * pw;
     parts.push(box(0.11, height, 0.07, C.wood, x, y0, pz, MAT.wood));
   }
-  // 抱鼓座
+  // 两端抱鼓座；开口一侧加高灯竿式端柱，标出可绕行
   for (const s of [-1, 1]) {
-    parts.push(box(0.36, 0.18, 0.28, C.woodMid, x, 0, z + s * (length / 2 - 0.1), MAT.wood));
+    const ez = z + s * (length / 2 - 0.1);
+    const isGapEnd = (gap === 'south' && s === 1) || (gap === 'north' && s === -1);
+    parts.push(box(0.36, 0.18, 0.28, C.woodMid, x, 0, ez, MAT.wood));
+    if (isGapEnd) {
+      parts.push(cyl(0.07, 1.35, C.wood, x, 0.18, ez, 8, MAT.wood));
+      parts.push(box(0.22, 0.08, 0.22, C.bronze, x, 1.5, ez, MAT.plain));
+      parts.push(cyl(0.05, 0.2, C.bronze, x, 1.58, ez, 6, MAT.plain));
+    }
   }
+  // 通道地面色带（无碰撞）：自屏风开口延伸，提示绕行方向
+  const openSign = gap === 'south' ? 1 : -1;
+  const openZ = z + openSign * (length / 2);
+  parts.push(box(1.15, 0.025, 2.6, C.floorDark, x, 0.01, openZ + openSign * 1.4, MAT.stone));
+  parts.push(box(0.55, 0.02, 0.55, C.bronze, x, 0.015, openZ + openSign * 0.45, MAT.plain));
   block(walkMap, x, z, 0.22, length / 2 + 0.08, 0, height + 0.2);
   return parts;
 }

@@ -44,13 +44,14 @@ export const ZONES = ROOMS.map(({ id, name, verse, maxX }) => ({ id, name, verse
 
 /**
  * 四道分隔屏风。length 沿 z；gap 为绕行一侧。
- * 通道约 3 m，与原作「以屏风隔而不绝」相合。
+ * 屏风偏靠封闭侧、缩短至 ~6 m，通道约 4.5 m，便于发现绕行；
+ * 通道口另有门槛色带与灯竿（architecture）提示。
  */
 export const SCREENS = [
-  { id: 's1', x: 11.6, z: -1.55, length: 7.7, height: 2.62, panels: 6, gap: 'south', paintingU: [0.72, 0.96] },
-  { id: 's2', x: 22.2, z: 1.55, length: 7.7, height: 2.62, panels: 6, gap: 'north', paintingU: [0.50, 0.74] },
-  { id: 's3', x: 31.4, z: -1.55, length: 7.7, height: 2.62, panels: 6, gap: 'south', paintingU: [0.28, 0.52] },
-  { id: 's4', x: 41.2, z: 1.55, length: 7.7, height: 2.62, panels: 6, gap: 'north', paintingU: [0.04, 0.28] },
+  { id: 's1', x: 11.6, z: -2.35, length: 6.0, height: 2.62, panels: 5, gap: 'south', paintingU: [0.72, 0.96] },
+  { id: 's2', x: 22.2, z: 2.35, length: 6.0, height: 2.62, panels: 5, gap: 'north', paintingU: [0.50, 0.74] },
+  { id: 's3', x: 31.4, z: -2.35, length: 6.0, height: 2.62, panels: 5, gap: 'south', paintingU: [0.28, 0.52] },
+  { id: 's4', x: 41.2, z: 2.35, length: 6.0, height: 2.62, panels: 5, gap: 'north', paintingU: [0.04, 0.28] },
 ];
 
 /** 坐榻 / 床：北壁一侧，与原作黑漆高背榻相应 */
@@ -86,27 +87,30 @@ export const SEATS = [
 ];
 
 /** 清吹厅北壁长榻，供乐伎一列坐 */
-export const LONG_BENCH = { x: 36.4, z: -3.55, w: 7.2, d: 0.85, h: 0.42 };
+export const LONG_BENCH = { x: 36.5, z: -3.45, w: 5.8, d: 0.82, h: 0.42 };
 
-/** 烛台（火焰另绘） */
+/** 烛台（火焰另绘）。壁侧高烛 + 屏风通道口高烛，便于辨认绕行 */
 export const CANDLES = [
-  { x: 2.15, z: -4.55, h: 1.15 },
-  { x: 8.85, z: -4.5, h: 1.2 },
-  { x: 4.2, z: 4.55, h: 1.05 },
-  { x: 13.4, z: -4.5, h: 1.18 },
-  { x: 19.6, z: -4.45, h: 1.1 },
-  { x: 16.2, z: 4.5, h: 1.12 },
-  { x: 24.2, z: -4.5, h: 1.16 },
-  { x: 29.0, z: -4.48, h: 1.08 },
-  { x: 27.4, z: 4.52, h: 1.1 },
-  { x: 33.4, z: -4.5, h: 1.2 },
-  { x: 39.4, z: -4.48, h: 1.14 },
-  { x: 36.2, z: 4.5, h: 1.08 },
-  { x: 43.2, z: -4.5, h: 1.12 },
-  { x: 47.6, z: -4.45, h: 1.18 },
-  { x: 45.5, z: 4.52, h: 1.06 },
-  { x: 21.4, z: 0.2, h: 0.92 },
-  { x: 30.6, z: 0.35, h: 0.9 },
+  { x: 2.15, z: -4.55, h: 1.35 },
+  { x: 8.85, z: -4.5, h: 1.4 },
+  { x: 4.2, z: 4.55, h: 1.28 },
+  { x: 13.4, z: -4.5, h: 1.38 },
+  { x: 19.6, z: -4.45, h: 1.32 },
+  { x: 16.2, z: 4.5, h: 1.34 },
+  { x: 24.2, z: -4.5, h: 1.36 },
+  { x: 29.0, z: -4.48, h: 1.3 },
+  { x: 27.4, z: 4.52, h: 1.32 },
+  { x: 33.4, z: -4.5, h: 1.4 },
+  { x: 39.4, z: -4.48, h: 1.34 },
+  { x: 36.2, z: 4.5, h: 1.3 },
+  { x: 43.2, z: -4.5, h: 1.34 },
+  { x: 47.6, z: -4.45, h: 1.38 },
+  { x: 45.5, z: 4.52, h: 1.28 },
+  // 通道口高烛：立于屏风开口一侧，标出绕行
+  { x: 11.6, z: 3.55, h: 1.55 },
+  { x: 22.2, z: -3.55, h: 1.55 },
+  { x: 31.4, z: 3.55, h: 1.55 },
+  { x: 41.2, z: -3.55, h: 1.55 },
 ];
 
 /** 梁下宫灯 */
@@ -146,11 +150,11 @@ export const FIGURES = [
   { id: 'lady-rest-b', kind: 'maid', x: 27.85, z: -1.25, y: 0, w: 0.66, h: 1.58, seed: 0.57 },
   { id: 'guest-rest', kind: 'guestStand', x: 25.15, z: 1.25, y: 0, w: 0.7, h: 1.74, seed: 0.39 },
   // —— 清吹 ——
-  { id: 'flute-a', kind: 'flute', x: 33.55, z: -3.35, y: 0.42, w: 0.82, h: 1.32, seed: 0.21 },
-  { id: 'flute-b', kind: 'flute', x: 35.05, z: -3.4, y: 0.42, w: 0.82, h: 1.3, seed: 0.29 },
-  { id: 'flute-c', kind: 'ladySit', x: 36.55, z: -3.38, y: 0.42, w: 0.84, h: 1.32, seed: 0.35 },
-  { id: 'flute-d', kind: 'flute', x: 38.05, z: -3.36, y: 0.42, w: 0.82, h: 1.31, seed: 0.43 },
-  { id: 'flute-e', kind: 'flute', x: 39.45, z: -3.34, y: 0.42, w: 0.82, h: 1.33, seed: 0.51 },
+  { id: 'flute-a', kind: 'flute', x: 33.85, z: -3.25, y: 0.42, w: 0.82, h: 1.32, seed: 0.21 },
+  { id: 'flute-b', kind: 'flute', x: 35.15, z: -3.3, y: 0.42, w: 0.82, h: 1.3, seed: 0.29 },
+  { id: 'flute-c', kind: 'ladySit', x: 36.5, z: -3.28, y: 0.42, w: 0.84, h: 1.32, seed: 0.35 },
+  { id: 'flute-d', kind: 'flute', x: 37.85, z: -3.3, y: 0.42, w: 0.82, h: 1.31, seed: 0.43 },
+  { id: 'flute-e', kind: 'flute', x: 39.15, z: -3.25, y: 0.42, w: 0.82, h: 1.33, seed: 0.51 },
   { id: 'han-qingchui', kind: 'hanSit', x: 33.35, z: 1.45, y: 0.02, w: 0.9, h: 1.46, seed: 0.16 },
   { id: 'guest-qingchui', kind: 'guestStand', x: 34.85, z: 2.15, y: 0, w: 0.7, h: 1.74, seed: 0.46 },
   // —— 散宴 ——
