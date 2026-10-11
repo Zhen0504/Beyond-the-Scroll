@@ -8,12 +8,17 @@ const WorldScene = lazy(() => import('./scenes/world/WorldScene.jsx'));
 
 const VEIL_MS = 1000;
 
+/** 地址哈希直达画境（便于演示与调试） */
+function worldFromHash() {
+  const h = window.location.hash.replace(/^#/, '');
+  if (h === 'jiangshan' || h === 'jiangshan-qiuse') return { name: 'world', id: 'jiangshan-qiuse' };
+  if (h === 'hanxizai' || h === 'hanxizai-yeyan') return { name: 'world', id: 'hanxizai-yeyan' };
+  return { name: 'entry' };
+}
+
 /** 场景切换：卷轴入口 ⇄ 画境，切换时以一层绢色帷幕过渡 */
 export default function App() {
-  // 地址带 #jiangshan 时直接进入画境（便于演示与调试）
-  const [scene, setScene] = useState(() =>
-    window.location.hash === '#jiangshan' ? { name: 'world', id: 'jiangshan-qiuse' } : { name: 'entry' },
-  );
+  const [scene, setScene] = useState(worldFromHash);
   const [veil, setVeil] = useState(false);
   const timer = useRef(0);
 

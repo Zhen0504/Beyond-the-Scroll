@@ -5,6 +5,7 @@
 当前进度：
 - **卷轴入口**：三轴陈列 → 点击展卷 → 名画介绍
 - **画境一 ·《江山秋色图》**：第一人称 2.5D/3D 可游览场景（介绍页点「入画」进入，或直接访问 `/#jiangshan`）
+- **画境二 ·《韩熙载夜宴图》**：室内夜宴厅基础画境（多进厅堂、屏风、榻案、烛光与皮影人物；`/#hanxizai` 直达）
 
 ## 运行
 
@@ -63,7 +64,7 @@ src/engine/                          通用画境引擎（各幅画共用）
   └─ noise.js                        可设种子的噪声
 src/scenes/world/
   ├─ WorldScene.jsx                  画境容器：加载、入画、暂停、区域题名
-  └─ jiangshan/                      《江山秋色图》
+  ├─ jiangshan/                      《江山秋色图》
      ├─ layout.js                    地图数据：江流、山崖线、三段区域、建筑、人物
      ├─ terrain.js                   高度场地形、土路、水深图
      ├─ rocks.js                     石柱山峰（云头、斧劈皴、石阶、点苔）
@@ -73,6 +74,12 @@ src/scenes/world/
      ├─ boats.js                     可登可划的舟（桨、随流漂移、搁浅与碰撞）
      ├─ architecture.js              亭、阁、山寺、栈道层台、拱桥、廊桥、江村、塔；峰顶亭台与悬崖楼阁
      ├─ water.js / clouds.js / sky.js   顺流水纹与落叶、瀑布、留白云带、绢色天空与原画环幕
+     └─ index.js                     组装与主循环
+  └─ hanxizai/                       《韩熙载夜宴图》
+     ├─ layout.js                    五进厅堂、屏风、榻案、烛灯、人物位置
+     ├─ architecture.js              粉墙朱柱、梁枋地砖、屏风、榻、案、鼓
+     ├─ figures.js                   皮影纸片人物（Billboards）
+     ├─ candles.js                   烛台与火苗
      └─ index.js                     组装与主循环
 public/paintings/jiangshan-qiuse/textures/
   ├─ backdrop.jpg                    原作全卷（去印章）—— 远景环幕
@@ -97,3 +104,5 @@ public/paintings/jiangshan-qiuse/textures/
 ## 素材来源
 
 《江山秋色图》图像来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Zhao_Boju,_Autumn_Colors_Over_Rivers_and_Mountains,_12_century,_Palace_Museum,_Beijing.jpg)（公有领域）。
+
+《韩熙载夜宴图》图像来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Gu_Hongzhong%27s_Night_Revels_1_complete_scene.jpg)（公有领域）。

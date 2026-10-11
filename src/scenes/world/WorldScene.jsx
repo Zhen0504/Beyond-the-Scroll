@@ -1,9 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildJiangshanWorld } from './jiangshan/index.js';
+import { buildHanxizaiWorld } from './hanxizai/index.js';
 import './WorldScene.css';
 
+const JIANGSHAN_KEYS = [
+  ['W A S D', '行走'],
+  ['Shift', '疾行'],
+  ['空格', '跳跃'],
+  ['鼠标', '环顾'],
+  ['E', '登船 / 上岸'],
+  ['Esc', '暂停'],
+];
+
 const BUILDERS = {
-  'jiangshan-qiuse': { build: buildJiangshanWorld, title: '江山秋色图' },
+  'jiangshan-qiuse': { build: buildJiangshanWorld, title: '江山秋色图', order: '壹', keys: JIANGSHAN_KEYS },
+  'hanxizai-yeyan': {
+    build: buildHanxizaiWorld,
+    title: '韩熙载夜宴图',
+    order: '贰',
+    keys: [
+      ['W A S D', '行走'],
+      ['Shift', '疾行'],
+      ['空格', '跳跃'],
+      ['鼠标', '环顾'],
+      ['Esc', '暂停'],
+    ],
+  },
 };
 
 /**
@@ -112,15 +134,12 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
       {(status === 'ready' || status === 'paused') && (
         <div className="world__overlay">
           <div className="world__card">
-            <p className="world__card-eyebrow">{status === 'ready' ? '画境 · 壹' : '暂停'}</p>
+            <p className="world__card-eyebrow">{status === 'ready' ? `画境 · ${def.order ?? '壹'}` : '暂停'}</p>
             <h2 className="world__card-title">{status === 'ready' ? '人在画中' : def.title}</h2>
             <ul className="world__keys">
-              <li><kbd>W A S D</kbd>行走</li>
-              <li><kbd>Shift</kbd>疾行</li>
-              <li><kbd>空格</kbd>跳跃</li>
-              <li><kbd>鼠标</kbd>环顾</li>
-              <li><kbd>E</kbd>登船 / 上岸</li>
-              <li><kbd>Esc</kbd>暂停</li>
+              {(def.keys ?? JIANGSHAN_KEYS).map(([k, label]) => (
+                <li key={k}><kbd>{k}</kbd>{label}</li>
+              ))}
             </ul>
             <div className="world__actions">
               <button type="button" className="seal-btn" onClick={enter}>
