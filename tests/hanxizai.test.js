@@ -1,118 +1,101 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { PerspectiveCamera, Vector3 } from "three";
 import { CAST } from "../src/scenes/world/hanxizai/cast.js";
-import { BOUNDS, ROOMS, SCREENS } from "../src/scenes/world/hanxizai/layout.js";
+import {
+  ROOMS,
+  SEATS,
+  BEDS,
+  DRUMS,
+} from "../src/scenes/world/hanxizai/layout.js";
+import { CHAPTERS } from "../src/scenes/world/hanxizai/story.js";
+import { GuidedTour } from "../src/scenes/world/hanxizai/GuidedTour.js";
 import {
   ACTION_CYCLES,
   actionFrame,
-  poseAngles,
-  rigDefinition,
-  skinInfluences,
   stepPaperSpring,
   wrapAngle,
 } from "../src/scenes/world/hanxizai/puppetRig.js";
 
-test("all 45 figures reference existing intact sprite bounds and the correct scene", () => {
+const create = (aspect = 1.5, reducedMotion = false) =>
+  new GuidedTour({
+    camera: new PerspectiveCamera(48, aspect, 0.1, 100),
+    reducedMotion,
+  });
+const settle = (t) => {
+  for (let i = 0; i < 250; i++) t.update(0.02);
+};
+
+test("45 complete figures and all registered frames fit their real source and atlas canvas", () => {
   assert.equal(CAST.length, 45);
   assert.equal(new Set(CAST.map((p) => p.id)).size, 45);
   for (const p of CAST) {
-    const path = new URL(
-      `../public/paintings/hanxizai-yeyan/puppets/${p.sheet}`,
-      import.meta.url,
+    const png = fs.readFileSync(
+      new URL(
+        `../public/paintings/hanxizai-yeyan/puppets/${p.sheet}`,
+        import.meta.url,
+      ),
     );
-    const png = fs.readFileSync(path),
-      width = png.readUInt32BE(16),
+    const width = png.readUInt32BE(16),
       height = png.readUInt32BE(20);
-    for (const frame of p.frames ?? [{ rect: p.rect }]) {
-      const [x, y, w, h] = frame.rect;
-      assert.ok(x >= 0 && y >= 0 && x + w <= width && y + h <= height, p.id);
+    for (const f of p.frames ?? [{ rect: p.rect }]) {
+      const [x, y, w, h] = f.rect;
+      assert.ok(
+        x >= 0 && y >= 0 && x + w <= width && y + h <= height,
+        `${p.id}: source crop`,
+      );
       if (p.frameSize) {
-        const [dx, dy] = frame.offset;
+        const [dx, dy] = f.offset;
         assert.ok(
           dx >= 0 &&
             dy >= 0 &&
             dx + w <= p.frameSize[0] &&
             dy + h <= p.frameSize[1],
-          `${p.id} frame is clipped`,
+          `${p.id}: registered crop`,
         );
       }
     }
-    const r = ROOMS.find((r) => r.id === p.section);
-    assert.ok(
-      p.x >= r.x0 && p.x < r.x1 && p.z > BOUNDS.minZ && p.z < BOUNDS.maxZ,
-      p.id,
-    );
+    const room = ROOMS.find((r) => r.id === p.section);
+    assert.ok(p.x >= room.x0 && p.x < room.x1, p.id);
   }
+  const count = CAST.reduce((n, p) => n + (p.frames?.length ?? 1), 0),
+    cols = Math.ceil(Math.sqrt((count * 512) / 320));
+  assert.ok(cols * 320 <= 4096 && Math.ceil(count / cols) * 512 <= 4096);
   assert.equal(CAST.filter((p) => p.id.startsWith("han-")).length, 5);
   assert.equal(CAST.filter((p) => /^wind-[a-e]$/.test(p.id)).length, 5);
-  assert.ok(CAST.find((p) => p.id === "monk").h > 1.7);
 });
 
-test("skin weights are normalized and the entire head stays on one rigid bone", () => {
-  for (const p of CAST) {
-    const nodes = rigDefinition(p.joints),
-      aspect = p.rect[2] / p.rect[3];
-    assert.equal(nodes.length, 15);
-    nodes.forEach((n, i) => assert.ok(n.parent < i));
-    for (let y = 0; y <= 1; y += 1 / 48)
-      for (let x = 0; x <= 1; x += 1 / 32) {
-        const s = skinInfluences([x, y], nodes, aspect);
-        assert.ok(
-          Math.abs(s.weights.reduce((a, b) => a + b, 0) - 1) < 1e-8,
-          p.id,
-        );
-        assert.ok(
-          s.weights.every((w) => Number.isFinite(w) && w >= 0 && w <= 1),
-        );
-        assert.ok(s.indices.every((i) => i >= 0 && i < 15));
-        if (y <= nodes[2].pivot[1] - 0.035) {
-          assert.equal(s.indices[0], 2);
-          assert.equal(s.weights[0], 1);
-        }
-      }
-  }
-});
-
-test("complete pose cycles cover drinking and dancing, hold, and close without changing scale", () => {
-  for (const motion of ["drink", "dance"]) {
-    const p = CAST.find((p) => p.motion === motion),
-      cycle = ACTION_CYCLES[motion];
+test("ten role cycles have complete gestures, holds, and a reproducible loop", () => {
+  assert.equal(Object.keys(ACTION_CYCLES).length, 10);
+  for (const [motion, cycle] of Object.entries(ACTION_CYCLES)) {
+    const p = CAST.find((p) => p.motion === motion && p.frames);
+    assert.ok(p, motion);
     const total = cycle.reduce((n, c) => n + c[1], 0);
-    assert.equal(p.frames.length, 4);
-    assert.equal(actionFrame(motion, 0), actionFrame(motion, total));
     const seen = new Set();
-    for (let t = 0; t < total; t += 0.02) seen.add(actionFrame(motion, t));
-    assert.deepEqual([...seen].sort(), [0, 1, 2, 3]);
     let at = 0;
     for (const [frame, duration] of cycle) {
       assert.equal(actionFrame(motion, at + duration / 2), frame);
+      assert.ok(frame < p.frames.length);
       at += duration;
     }
+    for (let t = 0; t < total; t += 0.02) seen.add(actionFrame(motion, t));
+    assert.deepEqual([...seen].sort(), [0, 1, 2, 3]);
+    assert.equal(actionFrame(motion, 0.1), actionFrame(motion, total + 0.1));
     assert.equal(actionFrame(motion, -0.5), actionFrame(motion, total - 0.5));
   }
-});
-
-test("motions stay bounded, move the intended joints, and keep the root anchored", () => {
-  for (const motion of new Set(CAST.map((p) => p.motion)))
-    for (let t = 0; t < 12; t += 0.075) {
-      const a = poseAngles(motion, t, 0.4);
-      assert.equal(a.waist, 0);
-      Object.values(a).forEach((v) =>
-        assert.ok(Number.isFinite(v) && Math.abs(v) < 0.16),
-      );
-    }
-  assert.notEqual(
-    poseAngles("drum", 0.6).leftElbow,
-    poseAngles("listen", 0.6).leftElbow,
+  assert.equal(
+    DRUMS.length,
+    0,
+    "no second drum through the compound paper puppet",
   );
-  assert.notEqual(
-    poseAngles("pipa", 0.4).leftWrist,
-    poseAngles("listen", 0.4).leftWrist,
+  assert.equal(
+    CAST.find((p) => p.id === "han-drum").sheet,
+    "drum-cycle-v2.png",
   );
 });
 
-test("camera-turn spring handles angle wrap, decays, and survives frame stalls", () => {
+test("paper spring handles wrap, frame stalls, and decays to rest", () => {
   assert.ok(Math.abs(wrapAngle(Math.PI * 2 - 0.01) + 0.01) < 1e-10);
   for (const dt of [1 / 30, 1 / 60, 1 / 144, 0.05]) {
     const s = { angle: 0, velocity: 0 };
@@ -129,13 +112,178 @@ test("camera-turn spring handles angle wrap, decays, and survives frame stalls",
   assert.ok(Number.isFinite(s.angle) && Math.abs(s.angle) <= 0.045);
 });
 
-test("screens leave a continuous promenade and the five viewpoints stay in bounds", () => {
-  for (const s of SCREENS)
-    assert.ok(s.z + (Math.abs(Math.sin(s.angle)) * s.length) / 2 + 0.3 < 2.5);
-  for (const r of ROOMS) {
-    const [x, z] = r.view;
+test("every chapter change gates on the original, cancels travel, and starts at its opening", () => {
+  const t = create();
+  assert.equal(t.state.phase, "plate");
+  const initial = t.camera.position.clone();
+  t.move(1);
+  assert.equal(t.state.stop, 0);
+  assert.ok(t.camera.position.equals(initial));
+  for (const c of CHAPTERS) {
+    t.openChapter(c.id);
+    assert.equal(t.state.phase, "plate");
+    assert.equal(t.state.stop, 0);
+    assert.equal(t.fade, 1);
+    t.enter();
+    assert.equal(t.state.phase, "entering");
+    settle(t);
+    assert.equal(t.state.phase, "scene");
+    t.move(1);
+    assert.equal(t.state.phase, "travel");
+    t.update(0.1);
+  }
+  t.openChapter("tingyue");
+  assert.equal(t.travel, null);
+  t.enter();
+  settle(t);
+  assert.equal(t.state.stop, 0);
+  const before = t.getSnapshot();
+  t.openChapter("unknown");
+  assert.equal(t.getSnapshot(), before);
+});
+
+test("all 17 stops and every sampled rail remain in front of actors, clear of furniture", () => {
+  assert.equal(
+    CHAPTERS.reduce((n, c) => n + c.stops.length, 0),
+    17,
+  );
+  for (const aspect of [1.5, 390 / 844]) {
+    const t = create(aspect);
+    for (const c of CHAPTERS) {
+      t.openChapter(c.id);
+      t.enter();
+      settle(t);
+      for (let i = 0; i < c.stops.length; i++) {
+        if (i) t.move(1);
+        for (let k = 0; k < 210; k++) {
+          t.update(0.02);
+          assert.ok(
+            t.camera.position.z >= 3,
+            "rail stays in front of all props",
+          );
+          const view = t.target.clone().sub(t.camera.position).normalize();
+          assert.ok(
+            view.z < -0.9,
+            "camera never turns edge-on or behind paper",
+          );
+        }
+        assert.equal(t.state.phase, "scene");
+        const s = c.stops[i];
+        if (s.actor) {
+          const p = CAST.find((p) => p.id === s.actor);
+          assert.equal(p.section, c.id);
+          assert.ok(s.lines.length >= 2);
+          t.camera.updateMatrixWorld();
+          const projected = new Vector3(p.x, p.y + p.h * 0.5, p.z).project(
+            t.camera,
+          );
+          assert.ok(
+            Math.abs(projected.x) < 0.8 && Math.abs(projected.y) < 0.8,
+            `${s.actor} visible at ${aspect}`,
+          );
+        }
+      }
+      t.move(1);
+      assert.equal(t.state.stop, c.stops.length - 1, "cannot walk off rail");
+    }
+  }
+});
+
+test("pause freezes a journey, resume completes it, painting view interrupts safely", () => {
+  const t = create();
+  t.enter();
+  settle(t);
+  t.move(1);
+  t.update(0.3);
+  t.pause();
+  const p = t.camera.position.clone();
+  settle(t);
+  assert.ok(p.equals(t.camera.position));
+  assert.equal(t.state.phase, "paused");
+  t.resume();
+  settle(t);
+  assert.equal(t.state.phase, "scene");
+  assert.equal(t.state.stop, 1);
+  t.nextLine();
+  assert.equal(t.state.line, 1);
+  t.move(1);
+  t.showPainting();
+  assert.equal(t.state.phase, "plate");
+  assert.equal(t.travel, null);
+  t.enter();
+  settle(t);
+  assert.equal(t.state.phase, "scene");
+  assert.equal(t.state.stop, 2);
+});
+
+test("reduced motion and resize keep rail/state consistent, subscribers detach", () => {
+  const t = create(0.46, true);
+  let calls = 0;
+  const unsub = t.subscribe(() => calls++);
+  t.enter();
+  assert.equal(t.state.phase, "scene");
+  t.move(1);
+  assert.equal(t.state.phase, "scene");
+  assert.equal(t.travel, null);
+  const p = t.camera.position.clone();
+  settle(t);
+  assert.ok(p.equals(t.camera.position));
+  t.reducedMotion = false;
+  t.move(1);
+  t.pause();
+  t.camera.aspect = 1.5;
+  t.resize();
+  t.resume();
+  assert.equal(t.state.phase, "scene");
+  t.move(-1);
+  t.camera.aspect = 0.46;
+  t.resize();
+  assert.equal(t.state.phase, "scene");
+  unsub();
+  const count = calls;
+  t.showPainting();
+  assert.equal(calls, count);
+  t.dispose();
+});
+
+test("chair fronts clear their paper sitters and occupied couches clear outer silhouettes", () => {
+  const ids = [
+    "li-jiaming",
+    "guest-listen-front",
+    "red-guest-dance",
+    "han-winds",
+    "farewell-seated",
+    "winds-clapper",
+  ];
+  for (let i = 0; i < SEATS.length; i++) {
+    const s = SEATS[i],
+      p = CAST.find((p) => p.id === ids[i]);
+    const extent =
+      s.kind === "stool"
+        ? 0.3
+        : (Math.abs(Math.sin(s.angle ?? 0)) * (s.w ?? 0.67)) / 2 +
+          (Math.abs(Math.cos(s.angle ?? 0)) * (s.d ?? 0.59)) / 2;
     assert.ok(
-      x > BOUNDS.minX && x < BOUNDS.maxX && z > BOUNDS.minZ && z <= BOUNDS.maxZ,
+      s.z + extent < p.z - 0.035,
+      `${p.id}: furniture crosses paper plane`,
+    );
+  }
+  for (const id of [
+    "rest-lady-a",
+    "rest-lady-b",
+    "rest-lady-c",
+    "rest-lady-d",
+    "han-rest",
+  ]) {
+    const p = CAST.find((p) => p.id === id),
+      b = BEDS.find((b) => b.id === "rest-couch"),
+      half =
+        (p.h * (p.frameSize ?? p.rect.slice(2))[0]) /
+        (p.frameSize ?? p.rect.slice(2))[1] /
+        2;
+    assert.ok(
+      p.x - half > b.x - b.w / 2 + 0.03 && p.x + half < b.x + b.w / 2 - 0.03,
+      id,
     );
   }
 });

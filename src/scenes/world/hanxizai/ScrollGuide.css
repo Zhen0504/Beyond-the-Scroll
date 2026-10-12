@@ -1,175 +1,527 @@
-.night-guide {
+.night-tour {
   position: absolute;
+  inset: 0;
   z-index: 12;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(760px, calc(100% - 32px));
-  color: #44392b;
-  font-family: var(--font-serif, "Noto Serif SC", serif);
+  pointer-events: none;
+  color: #322d22;
+  font-family: "Noto Serif SC", serif;
 }
-.night-guide__bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 25px;
-  padding: 12px 20px;
-  border-top: 1px solid #6e54394d;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    #e6d6afba 20%,
-    #e6d6afba 80%,
-    transparent
-  );
+.night-tour button,
+.night-tour a {
+  pointer-events: auto;
 }
-.night-guide__label {
-  font-size: 12px;
-  letter-spacing: 0.24em;
-  color: #756348;
-  white-space: nowrap;
-}
-.night-guide nav {
-  display: flex;
-  gap: 19px;
-}
-.night-guide button {
-  appearance: none;
-  border: 0;
-  background: transparent;
+.night-tour button {
+  font: inherit;
   color: inherit;
   cursor: pointer;
-  font: inherit;
-  padding: 4px;
+  border: 0;
+  background: none;
 }
-.night-guide nav button {
+.night-tour button:focus-visible,
+.night-tour a:focus-visible {
+  outline: 2px solid #883e2c;
+  outline-offset: 5px;
+}
+.night-tour button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.night-tour__header {
+  position: absolute;
+  z-index: 22;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 74px;
+  padding: 0 28px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-.night-guide nav i {
-  display: grid;
-  place-items: center;
-  font-style: normal;
-  width: 22px;
-  height: 25px;
-  color: #8b7153;
-  border: 1px solid transparent;
-  transition:
-    color 0.2s,
-    background 0.2s;
-}
-.night-guide [aria-current="step"] i {
-  color: #f3e4c3;
-  background: #944b38;
-  border-color: #813e2d;
-  box-shadow: inset 0 0 0 2px #c5876155;
-}
-.night-guide button:hover {
-  color: #923e2c;
-}
-.night-guide button:focus-visible {
-  outline: 2px solid #923e2c;
-  outline-offset: 4px;
-}
-.night-guide__compare {
-  font-size: 12px !important;
-  white-space: nowrap;
-}
-.night-guide kbd {
-  font-size: 9px;
-  font-family: inherit;
-  margin-left: 7px;
-  border: 1px solid #86694a66;
-  padding: 0 4px;
-}
-.night-guide__hint {
-  text-align: center;
-  color: #766349;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  margin: 5px 0 0;
-}
-.night-reference {
-  background: #e5d2aef0;
-  border: 1px solid #80644965;
-  box-shadow: 0 8px 35px #32231326;
-  padding: 14px;
-  margin: 0 auto 18px;
-  width: min(620px, 100%);
-  box-sizing: border-box;
-}
-.night-reference figcaption {
-  display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 10px;
-  font-size: 16px;
-  letter-spacing: 0.15em;
+  background: linear-gradient(#dfd0b1f2, #dfd0b100);
 }
-.night-reference figcaption small {
-  font-size: 10px;
-  letter-spacing: 0.05em;
+.night-tour__header nav {
+  display: flex;
+  gap: 20px;
+}
+.night-tour__header nav button {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid transparent;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+.night-tour__header nav i {
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.night-tour__header nav [aria-current] {
+  color: #833e2c;
+  border-color: #833e2c;
+}
+.night-tour__home,
+.night-tour__original {
+  font-size: 12px !important;
+  letter-spacing: 2px;
+}
+.night-tour kbd {
+  font: 10px sans-serif;
+  border: 1px solid #8d8066;
+  padding: 1px 3px;
+  margin-left: 5px;
   opacity: 0.7;
 }
-.night-reference__crop {
-  overflow: hidden;
-  position: relative;
-  max-height: 230px;
-  background: #99815c;
+.night-eyebrow {
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: #7d6b4d;
 }
-.night-reference img {
+.night-plate {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  pointer-events: auto;
+  background: radial-gradient(ellipse at 50% 40%, #eee2c7, #cdb990);
+  opacity: 1;
+}
+.night-plate--leaving {
+  opacity: 0;
+  transition: opacity 1.05s;
+  pointer-events: none;
+}
+.night-plate__inner {
+  width: min(1040px, 90%);
+  margin: auto;
+  padding: 95px 0 35px;
+  text-align: center;
+}
+.night-plate h1 {
+  font-family: "Ma Shan Zheng", serif;
+  font-weight: 400;
+  font-size: 52px;
+  letter-spacing: 16px;
+  margin: 10px 0 8px;
+  padding-left: 16px;
+}
+.night-plate__verse {
+  font-size: 13px;
+  letter-spacing: 5px;
+  margin: 0 0 26px;
+  color: #796443;
+}
+.night-plate__painting {
+  margin: 0 auto 22px;
+  padding: 15px 20px 9px;
+  background: #bba681;
+  box-shadow: 0 12px 32px #4e39262a;
+  border: 1px solid #a8926c;
+}
+.night-plate__crop {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: #b69f7b;
+}
+.night-plate__crop img {
   position: absolute;
   top: 0;
-  max-width: none;
   height: 100%;
+  max-width: none;
   object-fit: fill;
 }
-.night-reference p {
-  margin: 9px 0 5px;
-  font-size: 12px;
-  line-height: 1.8;
-}
-.night-reference__note {
+.night-plate figcaption {
   font-size: 10px;
-  color: #796448;
+  letter-spacing: 2px;
+  margin-top: 10px;
+  color: #534731;
 }
-@media (max-width: 720px) {
-  .night-guide {
-    bottom: 12px;
+.night-plate__intro {
+  max-width: 610px;
+  line-height: 1.9;
+  margin: 18px auto 20px;
+  font-size: 14px;
+}
+.night-tour .night-primary {
+  background: #804531;
+  color: #f1e6cf;
+  padding: 11px 23px;
+  border: 1px solid #653424;
+  letter-spacing: 2px;
+  box-shadow: inset 0 0 0 3px #a5684830;
+}
+.night-primary:hover {
+  background: #713b2b;
+}
+.night-plate__hint {
+  font-size: 11px;
+  color: #7c694e;
+  letter-spacing: 2px;
+  margin: 14px 0 22px;
+}
+.night-plate__credit {
+  font-size: 10px;
+  color: #7a6b52;
+}
+.night-plate__credit button {
+  text-decoration: underline;
+  margin-left: 10px;
+}
+.night-tour__title {
+  position: absolute;
+  left: 30px;
+  top: 105px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  writing-mode: vertical-rl;
+}
+.night-tour__title span {
+  font-family: "Ma Shan Zheng", serif;
+  font-size: 40px;
+  letter-spacing: 8px;
+}
+.night-tour__title small {
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: #716249;
+}
+.night-dialogue {
+  position: absolute;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 13px 16px 9px;
+  background: #f0e5cded;
+  border: 1px solid #aa9370;
+  border-radius: 3px;
+  box-shadow: 0 8px 30px #48362218;
+  pointer-events: auto;
+  animation: night-appear 0.5s ease both;
+}
+.night-dialogue:after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: #f0e5cd;
+  border-right: 1px solid #aa9370;
+  border-bottom: 1px solid #aa9370;
+}
+.night-dialogue__byline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.night-dialogue__byline small {
+  font-size: 9px;
+  color: #998260;
+}
+.night-dialogue__action {
+  margin: 7px 0;
+  color: #816e50;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.night-dialogue__line {
+  font-size: 13px;
+  line-height: 1.9;
+  margin: 9px 0 3px;
+}
+.night-dialogue button {
+  display: block;
+  margin-left: auto;
+  padding: 4px 0;
+  font-size: 10px;
+  color: #83452e;
+}
+.night-route {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(850px, calc(100% - 48px));
+  padding: 14px 24px 8px;
+  background: #e9ddc3ee;
+  border: 1px solid #a8937077;
+  box-shadow: 0 10px 36px #4f3b211c;
+  pointer-events: auto;
+}
+.night-route__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.night-route__heading p {
+  font-size: 17px;
+  letter-spacing: 3px;
+  margin: 0;
+}
+.night-route__heading small {
+  font:
+    11px Georgia,
+    serif;
+  letter-spacing: 2px;
+  margin-right: 20px;
+  color: #956340;
+}
+.night-route__heading > span {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #8b7756;
+}
+.night-route__note {
+  font-size: 12px;
+  line-height: 1.85;
+  margin: 9px 0 12px;
+  color: #65563f;
+}
+.night-route__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.night-route__bottom > button:first-child {
+  font-size: 12px;
+  padding: 8px 0;
+}
+.night-route__bottom .night-primary {
+  font-size: 12px;
+  padding: 9px 16px;
+  min-width: 200px;
+}
+.night-route ol {
+  display: flex;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.night-route li {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #9b8260;
+  transform: rotate(45deg);
+}
+.night-route li[aria-current] {
+  background: #84472f;
+  border-color: #84472f;
+}
+.night-route li span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.night-tour .night-route__source {
+  display: block;
+  font-size: 9px;
+  color: #8a775b;
+  margin: 9px auto 0;
+  padding: 0;
+  letter-spacing: 1px;
+}
+.night-modal {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #382d22a6;
+  pointer-events: auto;
+  padding: 24px;
+}
+.night-modal > div {
+  max-width: 520px;
+  padding: 30px;
+  background: #e8dcc1;
+  border: 1px solid #ad9570;
+  max-height: 90vh;
+  overflow: auto;
+}
+.night-modal h2 {
+  font-weight: 400;
+  letter-spacing: 4px;
+  font-size: 26px;
+}
+.night-modal p:not(.night-eyebrow) {
+  font-size: 13px;
+  line-height: 1.9;
+}
+.night-modal ul {
+  padding-left: 20px;
+  line-height: 2;
+  font-size: 12px;
+}
+.night-modal a {
+  color: #84472f;
+}
+.night-modal button {
+  margin: 12px 14px 0 0;
+  font-size: 12px;
+}
+.night-tour--paused .night-route {
+  opacity: 0.3;
+}
+@keyframes night-appear {
+  from {
+    opacity: 0;
   }
-  .night-guide__bar {
-    gap: 10px;
-    padding: 9px 0;
+  to {
+    opacity: 1;
   }
-  .night-guide__label {
-    display: none;
+}
+@media (max-width: 700px) {
+  .night-tour__header {
+    height: 67px;
+    padding: 0 12px;
   }
-  .night-guide nav {
-    gap: 5px;
+  .night-tour__header nav {
+    gap: 6px;
   }
-  .night-guide nav button {
+  .night-tour__header nav button {
     font-size: 11px;
-    gap: 3px;
+    letter-spacing: 1px;
+    padding: 8px 3px;
   }
-  .night-guide nav i {
-    width: 17px;
-    height: 22px;
-  }
-  .night-guide__compare {
-    font-size: 10px !important;
-  }
-  .night-guide kbd {
+  .night-tour__header nav i,
+  .night-tour kbd {
     display: none;
   }
-  .night-reference figcaption small {
+  .night-tour__home,
+  .night-tour__original {
+    font-size: 10px !important;
+    letter-spacing: 0;
+  }
+  .night-plate__inner {
+    padding-top: 85px;
+    width: 92%;
+  }
+  .night-plate h1 {
+    font-size: 42px;
+  }
+  .night-plate__painting {
+    padding: 8px 8px 7px;
+    margin-top: 25px;
+  }
+  .night-plate figcaption {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .night-plate__intro {
+    font-size: 13px;
+    padding: 0 12px;
+  }
+  .night-plate__credit {
+    font-size: 9px;
+    line-height: 1.8;
+    padding: 0 16px;
+  }
+  .night-plate__hint {
+    letter-spacing: 0;
+  }
+  .night-tour__title {
+    left: 12px;
+    top: 85px;
+    gap: 7px;
+  }
+  .night-tour__title span {
+    font-size: 28px;
+  }
+  .night-tour__title small {
+    display: none;
+  }
+  .night-dialogue {
+    width: 212px;
+    padding: 10px 13px 6px;
+  }
+  .night-dialogue__line {
+    font-size: 12px;
+  }
+  .night-route {
+    bottom: 10px;
+    width: calc(100% - 24px);
+    padding: 12px 14px 8px;
+  }
+  .night-route__heading p {
+    font-size: 15px;
+  }
+  .night-route__heading small {
+    margin-right: 12px;
+  }
+  .night-route__heading > span {
+    font-size: 9px;
+  }
+  .night-route__note {
+    font-size: 11px;
+    line-height: 1.8;
+    margin: 8px 0 9px;
+  }
+  .night-route__bottom {
+    gap: 10px;
+  }
+  .night-route__bottom .night-primary {
+    font-size: 10px;
+    min-width: 0;
+    padding: 10px 11px;
+    letter-spacing: 1px;
+  }
+  .night-route ol {
+    gap: 8px;
+  }
+  .night-route li {
+    width: 4px;
+    height: 4px;
+  }
+  .night-modal {
+    padding: 18px;
+  }
+  .night-modal > div {
+    padding: 24px;
+  }
+}
+@media (max-height: 650px) {
+  .night-plate__inner {
+    padding-top: 73px;
+  }
+  .night-plate h1 {
+    font-size: 32px;
+    margin: 5px 0;
+  }
+  .night-plate__verse {
+    margin-bottom: 14px;
+  }
+  .night-plate__painting {
+    max-width: 700px;
+  }
+  .night-plate__intro {
+    margin: 12px auto;
+  }
+  .night-route {
+    bottom: 8px;
+  }
+  .night-route__note {
+    margin: 6px 0;
+  }
+  .night-tour__title {
     display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .night-guide nav i {
+  .night-plate--leaving {
     transition: none;
+  }
+  .night-dialogue {
+    animation: none;
   }
 }

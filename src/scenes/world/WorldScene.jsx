@@ -20,10 +20,8 @@ const BUILDERS = {
     title: '韩熙载夜宴图',
     order: '贰',
     keys: [
-      ['W A S D', '行走'],
-      ['Shift', '疾行'],
-      ['空格', '跳跃'],
-      ['鼠标', '环顾'],
+      ['↑ ↓ / W S', '沿席前行 / 回看'],
+      ['点击', '停步观画 / 再听一句'],
       ['1—5 / R', '换折 / 原卷对照'],
       ['Esc', '暂停'],
     ],
@@ -31,11 +29,12 @@ const BUILDERS = {
 };
 
 /**
- * 画境容器：加载 → 点击入画（锁定鼠标）→ 漫游 / 暂停，及区域题名。
+ * 画境容器：江山采用自由漫游，夜宴采用原卷门页与固定路线。
  * status: loading | ready | playing | paused | error
  */
 export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   const def = BUILDERS[paintingId] ?? BUILDERS['jiangshan-qiuse'];
+  const guided = paintingId === 'hanxizai-yeyan';
   const canvasRef = useRef(null);
   const overlayRef = useRef(null);
   const promiseRef = useRef(null);
@@ -100,10 +99,10 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
 
   return (
     <div className={`world world--${status}`}>
-      <canvas ref={canvasRef} className="world__canvas" onClick={status === 'playing' ? undefined : enter} />
+      <canvas ref={canvasRef} className="world__canvas" onClick={guided || status === 'playing' ? undefined : enter} />
       <div ref={overlayRef} className="world__bubbles" aria-live="polite" />
 
-      {status === 'playing' && <span className="world__reticle" aria-hidden="true" />}
+      {!guided && status === 'playing' && <span className="world__reticle" aria-hidden="true" />}
 
       {status === 'playing' && prompt && (
         <p className="world__prompt" aria-live="polite">
@@ -111,12 +110,12 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         </p>
       )}
 
-      <header className="world__badge">
+      {!guided && <header className="world__badge">
         <span className="world__badge-seal">画境</span>
         <span className="world__badge-title">{def.title}</span>
-      </header>
+      </header>}
 
-      {zone && (
+      {!guided && zone && (
         <div className="world__zone" key={zone.key} aria-live="polite">
           <span className="world__zone-name">{zone.name}</span>
           <span className="world__zone-verse">{zone.verse}</span>
@@ -124,7 +123,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
       )}
 
       {paintingId === 'hanxizai-yeyan' && !['loading', 'error'].includes(status) && (
-        <ScrollGuide world={worldRef.current} zone={zone} active={status === 'playing'} />
+        <ScrollGuide world={worldRef.current} onExit={exit} />
       )}
 
       {status === 'loading' && (
@@ -137,7 +136,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         </div>
       )}
 
-      {(status === 'ready' || status === 'paused') && (
+      {!guided && (status === 'ready' || status === 'paused') && (
         <div className="world__overlay">
           <div className="world__card">
             <p className="world__card-eyebrow">{status === 'ready' ? `画境 · ${def.order ?? '壹'}` : '暂停'}</p>

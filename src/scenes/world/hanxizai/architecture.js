@@ -14,7 +14,15 @@ import {
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MAT, box, cyl, paint } from "../../../engine/painted.js";
 import { NOISE_GLSL } from "../../../engine/shaders/common.glsl.js";
-import { BEDS, DRUMS, MUSIC_MATS, SCREENS, SEATS, TABLES } from "./layout.js";
+import {
+  BEDS,
+  DRUMS,
+  MUSIC_MATS,
+  ROOMS,
+  SCREENS,
+  SEATS,
+  TABLES,
+} from "./layout.js";
 import { brocadeTexture, screenPainting } from "./surfacePainter.js";
 
 const C = {
@@ -193,7 +201,7 @@ export function createArchitecture({ walkMap, silkTexture }) {
       add(cyl(0.05, backH + 0.1, C.ink, sx, h, z - d / 2, 8));
     }
     // Bolsters are rounded, not square blocks.
-    for (const dx of [-1, 1]) {
+    for (const dx of b.canopy ? [-1, 1] : []) {
       const pillow = new SphereGeometry(1, 16, 10);
       pillow.scale(0.28, 0.11, 0.2);
       pillow.translate(x + dx * w * 0.31, h + 0.14, z - 0.25);
@@ -342,22 +350,7 @@ export function createArchitecture({ walkMap, silkTexture }) {
   TABLES.forEach(table);
   SEATS.forEach(seat);
   SCREENS.forEach(screen);
-  // The pale strip before the resting couch is a hanging textile, not another
-  // headless attendant. A shallow basin and soft towel accompany Han's hands.
-  add(
-    vessel(
-      [
-        [0.06, 0],
-        [0.19, 0.015],
-        [0.27, 0.085],
-        [0.28, 0.095],
-      ],
-      C.gold,
-      27.48,
-      0.8,
-      -0.38,
-    ),
-  );
+  // Han's basin belongs to the intact painted silhouette; do not duplicate it.
   const towel = panel(0.45, 0.86, 27.9, 0.04, -0.24, fabric);
   towel.geometry.dispose();
   towel.geometry = new PlaneGeometry(0.45, 0.86, 16, 24);
@@ -413,10 +406,26 @@ export function createArchitecture({ walkMap, silkTexture }) {
         ),
       );
   }
-  const geometry = mergeGeometries(parts);
+  const stages = ROOMS.map(() => new Group());
+  const sectionAt = (x) =>
+    Math.max(
+      0,
+      ROOMS.findIndex((r) => x < r.maxX),
+    );
+  const buckets = ROOMS.map(() => []);
+  parts.forEach((g) => {
+    g.computeBoundingBox();
+    buckets[sectionAt((g.boundingBox.min.x + g.boundingBox.max.x) / 2)].push(g);
+  });
+  buckets.forEach((items, i) => {
+    if (items.length) stages[i].add(new Mesh(mergeGeometries(items), mat));
+  });
   parts.forEach((g) => g.dispose());
-  const mesh = new Mesh(geometry, mat);
-  group.add(mesh, ...decor);
+  decor.forEach((m) => stages[sectionAt(m.position.x)].add(m));
+  stages.forEach((s, i) => {
+    s.name = ROOMS[i].id;
+    group.add(s);
+  });
 
   const floorMat = new ShaderMaterial({
     uniforms: {
@@ -445,5 +454,14 @@ export function createArchitecture({ walkMap, silkTexture }) {
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(30, -0.02, 0);
   group.add(floor);
-  return { group, mesh, material: mat };
+  return {
+    group,
+    stages,
+    material: mat,
+    setSection(id) {
+      stages.forEach((s) => {
+        s.visible = s.name === id;
+      });
+    },
+  };
 }

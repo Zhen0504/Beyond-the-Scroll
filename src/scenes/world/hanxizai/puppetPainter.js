@@ -3,11 +3,11 @@ import { CanvasTexture, SRGBColorSpace } from "three";
 /** Use the reviewed alpha channel, never a polygon through a painted face.
  * Insets and transparent gutters prevent neighboring figures leaking into UVs. */
 export function createPuppetAtlas(images, cast) {
-  const cols = 8,
-    cellW = 384,
-    cellH = 576,
+  const cellW = 320,
+    cellH = 512,
     pad = 8;
   const count = cast.reduce((sum, p) => sum + (p.frames?.length ?? 1), 0);
+  const cols = Math.ceil(Math.sqrt((count * cellH) / cellW));
   const canvas = document.createElement("canvas");
   canvas.width = cols * cellW;
   canvas.height = Math.ceil(count / cols) * cellH;

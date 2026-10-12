@@ -120,7 +120,15 @@ export const BEDS = [
     h: 0.56,
     cloth: "#b9ac78",
   },
-  { id: "rest-couch", x: 28.4, z: -1.8, w: 4, d: 2, h: 0.58, cloth: "#aaa17f" },
+  {
+    id: "rest-couch",
+    x: 28.6,
+    z: -1.8,
+    w: 4.6,
+    d: 2,
+    h: 0.58,
+    cloth: "#aaa17f",
+  },
   {
     id: "curtained-bed",
     x: 32.6,
@@ -134,16 +142,17 @@ export const BEDS = [
 ];
 export const TABLES = [
   { x: 4.7, z: -0.1, w: 1.8, d: 0.67, h: 0.73 },
-  { x: 7.8, z: 0.7, w: 2.2, d: 0.75, h: 0.73 },
+  { x: 8.5, z: 0.7, w: 2.2, d: 0.75, h: 0.73 },
 ];
 export const SEATS = [
   { x: 3.9, z: -1.2, kind: "chair" },
-  { x: 6.4, z: 0.18, kind: "chair", angle: -0.65 },
-  { x: 19.9, z: -0.68, kind: "chair", angle: -0.85 },
-  { x: 45, z: -1.6, kind: "chair", w: 1.2, d: 1, h: 0.58 },
-  { x: 55.9, z: -0.8, kind: "chair", w: 0.85 },
-  { x: 38.5, z: -1.16, kind: "stool" },
+  { x: 6.7, z: -0.05, kind: "chair", angle: -0.65 },
+  { x: 19.4, z: -1.08, kind: "chair", angle: -0.85 },
+  { x: 45, z: -1.97, kind: "chair", w: 1.2, d: 1, h: 0.58 },
+  { x: 55.9, z: -0.98, kind: "chair", w: 0.85 },
+  { x: 38.5, z: -1.4, kind: "stool" },
 ];
-export const DRUMS = [{ x: 20.25, z: -1.5, r: 0.47, h: 1.24 }];
+// The drum and mallet now share a registered painted pose, ensuring contact.
+export const DRUMS = [];
 export const MUSIC_MATS = [{ x: 41.35, z: -1.22, w: 4.15, d: 1.55 }];
 export const CANDLES = [{ x: 30.5, z: 0.5, h: 1.5 }];

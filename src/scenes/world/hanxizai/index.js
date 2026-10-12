@@ -7,14 +7,14 @@ import {
   TextureLoader,
 } from "three";
 import { createAtmosphere } from "../../../engine/atmosphere.js";
-import { FirstPersonController } from "../../../engine/FirstPersonController.js";
+import { GuidedTour } from "./GuidedTour.js";
 import { PaintRenderer } from "../../../engine/PaintRenderer.js";
 import { WalkMap } from "../../../engine/WalkMap.js";
 import { createArchitecture } from "./architecture.js";
 import { createCandles } from "./candles.js";
 import { createPuppetFigures } from "./puppets.js";
 import { CAST } from "./cast.js";
-import { BOUNDS, ROOMS, SPAWN } from "./layout.js";
+import { BOUNDS } from "./layout.js";
 
 const TEX = `${import.meta.env.BASE_URL}paintings/hanxizai-yeyan/`;
 const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
@@ -32,13 +32,7 @@ function silkMean(image) {
   return mean / (32 * 32 * 3);
 }
 
-export async function buildHanxizaiWorld({
-  canvas,
-  onProgress,
-  onLockChange,
-  onZone,
-  onPrompt,
-}) {
+export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
   const progress = (p, label) => onProgress?.(p, label);
   progress(0.06, "展绢 · 原卷取色");
   const loader = new TextureLoader();
@@ -92,101 +86,52 @@ export async function buildHanxizaiWorld({
   // Atlas now owns the sampled pixels, the source texture need not occupy VRAM.
   spriteTextures.forEach((t) => t.dispose());
   const camera = new PerspectiveCamera(
-    57,
+    48,
     window.innerWidth / window.innerHeight,
     0.1,
     100,
   );
-  const controller = new FirstPersonController({
-    camera,
-    dom: canvas,
-    walkMap,
-    spawn: SPAWN,
-    onLockChange,
-  });
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const controller = new GuidedTour({
+    camera,
+    reducedMotion: reducedMotion.matches,
+    onChapter: (chapter) => {
+      arch.setSection(chapter.id);
+      figures.setSection(chapter.id);
+      candles.sticks.visible = candles.flames.visible =
+        chapter.id === "zhanxie";
+      onZone?.(chapter);
+    },
+  });
   progress(0.9, "缀节 · 纸偶入席");
   await nextFrame();
   renderer.renderer.compile(scene, camera);
   let raf = 0,
     last = performance.now(),
-    fade = 1,
-    zone = null,
-    lastPrompt = null,
     running = false,
     disposed = false;
   const perf = { frames: 0, time: 0, checked: 0 };
 
-  function visit(id) {
-    const r = ROOMS.find((r) => r.id === id);
-    if (!r) return;
-    const [x, z, yaw] = r.view;
-    Object.assign(controller.pos, { x, z, y: 0 });
-    controller.feetY =
-      controller.air =
-      controller.vy =
-      controller.vx =
-      controller.vz =
-        0;
-    controller.yaw = yaw;
-    controller.pitch = -0.055;
-    controller.keys.clear();
-    fade = 0.35;
-    zone = null;
-  }
-  const onKey = (e) => {
-    if (
-      e.repeat ||
-      e.ctrlKey ||
-      e.metaKey ||
-      e.altKey ||
-      /INPUT|TEXTAREA|SELECT/.test(e.target?.tagName)
-    )
-      return;
-    const index = Number(e.code.replace("Digit", "")) - 1;
-    if (e.code.startsWith("Digit") && ROOMS[index]) visit(ROOMS[index].id);
-  };
+  const visit = (id) => controller.openChapter(id);
   const onResize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+    controller.resize();
     renderer.resize();
   };
   window.addEventListener("resize", onResize);
-  window.addEventListener("keydown", onKey);
   function frame(now) {
     if (!running || disposed) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    atmosphere.uTime.value += reducedMotion.matches ? 0 : dt;
+    const paused = ["plate", "paused"].includes(controller.state.phase);
+    atmosphere.uTime.value += reducedMotion.matches || paused ? 0 : dt;
+    controller.reducedMotion = reducedMotion.matches;
     controller.update(dt);
-    figures.update(dt, camera, { reducedMotion: reducedMotion.matches });
-    fade = Math.max(0, fade - dt * 0.75);
-    renderer.postMaterial.uniforms.uFade.value = fade * fade;
-    const current = ROOMS.find((r) => camera.position.x <= r.maxX);
-    if (current !== zone) {
-      zone = current;
-      onZone?.(current);
-    }
-    let nearest = null,
-      dist = 3.2;
-    for (const p of figures.cast) {
-      const dx = p.x - camera.position.x,
-        dz = p.z - camera.position.z,
-        d = Math.hypot(dx, dz);
-      // Caption only for a nearby puppet in the forward half of the view.
-      if (
-        d < dist &&
-        -Math.sin(controller.yaw) * dx - Math.cos(controller.yaw) * dz >
-          d * 0.55
-      ) {
-        dist = d;
-        nearest = p.name;
-      }
-    }
-    if (nearest !== lastPrompt) {
-      lastPrompt = nearest;
-      onPrompt?.(nearest);
-    }
+    if (!paused)
+      figures.update(dt, camera, { reducedMotion: reducedMotion.matches });
+    renderer.postMaterial.uniforms.uFade.value =
+      controller.fade * controller.fade;
     renderer.render(scene, camera);
     perf.frames++;
     perf.time += dt;
@@ -201,6 +146,9 @@ export async function buildHanxizaiWorld({
   }
   progress(1, "入画");
   return {
+    mode: "guided",
+    tour: controller,
+    architecture: arch,
     controller,
     camera,
     scene,
@@ -223,7 +171,6 @@ export async function buildHanxizaiWorld({
       running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("keydown", onKey);
       controller.dispose();
       scene.remove(figures.group);
       figures.dispose();
