@@ -1,0 +1,436 @@
+.night-modal > .night-archive {
+  width: min(760px, 100%);
+  max-width: 760px;
+  max-height: min(90dvh, 1000px);
+  padding: 22px 38px 30px;
+  text-align: left;
+  scroll-behavior: smooth;
+}
+.night-archive__top {
+  position: sticky;
+  top: -22px;
+  z-index: 2;
+  background: #e8dcc1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #b4a080;
+  padding: 12px 0;
+  margin-bottom: 26px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #7c694e;
+}
+.night-archive__top button {
+  margin: 0;
+  padding: 8px;
+}
+.night-archive h2 {
+  margin: 12px 0 20px;
+  line-height: 1.5;
+}
+.night-archive h3 {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.night-archive .night-archive__small {
+  color: #7e705c;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.night-threads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin: 22px 0;
+}
+.night-threads p {
+  margin: 0;
+}
+.night-threads b {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #914d35;
+  margin-bottom: 8px;
+  font-weight: 400;
+}
+.night-threads p:last-child {
+  padding-left: 22px;
+  border-left: 1px solid #b6a382;
+}
+.night-evidence {
+  padding: 15px 20px;
+  background: #d7c4a144;
+  border-left: 2px solid #a5916c;
+}
+.night-evidence span {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #7e6849;
+}
+.night-evidence p {
+  margin: 7px 0 0;
+}
+.night-choices {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0 4px;
+}
+.night-choices button {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 0;
+  padding: 13px 16px;
+  text-align: left;
+  border: 1px solid #b8a584;
+  line-height: 1.6;
+}
+.night-choices button:hover {
+  background: #ddd0b5;
+}
+.night-choices button span {
+  color: #8b5b40;
+  font-size: 12px;
+}
+.night-choices button[data-state="correct"] {
+  border-color: #536c54;
+  background: #c7cfb84d;
+}
+.night-choices button[data-state="wrong"] {
+  border-color: #954f35;
+  background: #c4937240;
+}
+.night-choices em {
+  font-size: 10px;
+  font-style: normal;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.night-hint {
+  text-decoration: underline;
+  color: #7f5138 !important;
+}
+.night-hint__text {
+  color: #7b6241;
+}
+.night-reveal {
+  margin-top: 24px;
+  padding: 20px 22px;
+  background: #d4c6a65c;
+  border-top: 1px solid #ae9674;
+}
+.night-reveal:focus {
+  outline: none;
+}
+.night-reveal h3 {
+  margin: 8px 0 12px;
+}
+.night-reveal__next {
+  color: #874a35;
+  border-top: 1px solid #bda98a;
+  padding-top: 14px;
+  margin-top: 20px;
+}
+.night-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  padding-top: 6px;
+}
+.night-citations a {
+  font-size: 10px;
+  line-height: 1.7;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.night-archive__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.night-people-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.night-people-nav button {
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid #b6a382;
+  font-size: 11px;
+}
+.night-people-nav [aria-pressed="true"] {
+  background: #84472f;
+  color: #f4ead4;
+  border-color: #84472f;
+}
+.night-person header {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 12px 0 18px;
+  border-bottom: 1px solid #b6a382;
+}
+.night-person__portrait {
+  width: 110px;
+  height: 131px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.night-person header h3 {
+  font-size: 28px;
+  letter-spacing: 4px;
+  margin: 8px 0;
+}
+.night-person header p {
+  margin: 5px 0;
+}
+.night-person dl {
+  margin: 22px 0;
+}
+.night-person dl > div {
+  margin-bottom: 18px;
+}
+.night-person dt {
+  color: #8a5038;
+  font-size: 11px;
+  letter-spacing: 2px;
+  margin-bottom: 7px;
+}
+.night-person dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.night-seals {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 9px;
+  margin: 28px 0;
+}
+.night-seals button {
+  text-align: left;
+  margin: 0;
+  padding: 11px 10px;
+  line-height: 1.8;
+  border: 1px solid #b3a080;
+  font-size: 11px;
+}
+.night-seals small {
+  display: block;
+  font-size: 9px;
+  margin-bottom: 5px;
+  color: #7a674e;
+}
+.night-seals [data-found] {
+  border-color: #9d573e;
+  background: #cba68133;
+}
+.night-ending-copy > h3 {
+  margin: 30px 0 10px;
+  color: #85482f;
+}
+.night-ending-copy details {
+  margin-top: 22px;
+  padding: 15px 18px;
+  background: #d6c29e33;
+  font-size: 12px;
+}
+.night-ending-copy summary {
+  cursor: pointer;
+}
+.night-timeline {
+  list-style: none;
+  padding: 0 !important;
+  margin: 24px 0;
+}
+.night-timeline li {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 14px;
+  padding: 0 0 25px;
+}
+.night-timeline time {
+  color: #945237;
+  font:
+    22px Georgia,
+    serif;
+  padding-top: 4px;
+}
+.night-timeline li:last-child time {
+  font-size: 13px;
+}
+.night-timeline h4 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 500;
+}
+.night-timeline p {
+  margin: 7px 0 9px;
+}
+.night-ending-unknown {
+  color: #7c6b52;
+}
+.night-ending-last {
+  border-top: 1px solid #b6a382;
+  padding-top: 22px;
+  color: #85482f;
+}
+.night-plate__thread {
+  font-size: 12px;
+  color: #81432f;
+  margin: 18px 0;
+}
+.night-plate__context {
+  max-width: 560px;
+  margin: 0 auto 20px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #786449;
+}
+.night-plate__thread button {
+  padding: 5px;
+  border-bottom: 1px solid #a37f5e;
+}
+.night-route__tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid #b6a38277;
+}
+.night-route__tools button {
+  font-size: 10px;
+  padding: 4px 0;
+  color: #805339;
+}
+.night-route__tools .night-route__source {
+  margin: 0;
+  font-size: 9px;
+}
+.night-route__thread-label {
+  color: #8b4e35;
+  margin-right: 8px;
+  font-size: 10px;
+}
+.night-dialogue .night-dialogue__person {
+  margin: 0;
+}
+.night-dialogue__buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+@media (max-height: 650px) {
+  .night-dialogue {
+    width: 220px;
+    padding: 8px 12px 5px;
+  }
+  .night-dialogue__action {
+    display: none;
+  }
+  .night-dialogue__line {
+    font-size: 11px;
+    line-height: 1.6;
+    margin: 5px 0 2px;
+  }
+  .night-dialogue__byline {
+    font-size: 11px;
+  }
+  .night-dialogue__buttons button {
+    font-size: 9px;
+  }
+  .night-route {
+    padding-top: 8px;
+    padding-bottom: 6px;
+  }
+  .night-route__tools {
+    margin-top: 5px;
+    padding-top: 4px;
+  }
+}
+.night-tour__header nav button[data-clue="true"]:after {
+  content: "·";
+  color: #914d35;
+}
+@media (max-width: 700px) {
+  .night-modal > .night-archive {
+    padding: 16px 20px 25px;
+    max-height: 92dvh;
+  }
+  .night-archive h2 {
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  .night-archive__top {
+    top: -16px;
+    margin-bottom: 22px;
+    letter-spacing: 1px;
+  }
+  .night-threads {
+    gap: 12px;
+  }
+  .night-threads p:last-child {
+    padding-left: 12px;
+  }
+  .night-evidence,
+  .night-reveal {
+    padding: 13px 15px;
+  }
+  .night-choices button {
+    font-size: 12px;
+    padding: 11px 12px;
+  }
+  .night-person header {
+    gap: 15px;
+  }
+  .night-person__portrait {
+    width: 84px;
+    height: 100px;
+  }
+  .night-person header h3 {
+    font-size: 23px;
+  }
+  .night-person header .night-eyebrow {
+    letter-spacing: 1px;
+  }
+  .night-seals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .night-seals button:last-child {
+    grid-column: span 2;
+  }
+  .night-timeline li {
+    grid-template-columns: 65px 1fr;
+    gap: 8px;
+  }
+  .night-timeline time {
+    font-size: 18px;
+  }
+  .night-route__tools {
+    gap: 8px;
+  }
+  .night-route__tools button {
+    font-size: 9px;
+  }
+  .night-route__tools .night-route__source {
+    font-size: 8px;
+  }
+  .night-tour__header nav button[data-clue="true"]:after {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .night-modal > .night-archive {
+    scroll-behavior: auto;
+  }
+}

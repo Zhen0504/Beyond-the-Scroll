@@ -14,15 +14,7 @@ import {
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MAT, box, cyl, paint } from "../../../engine/painted.js";
 import { NOISE_GLSL } from "../../../engine/shaders/common.glsl.js";
-import {
-  BEDS,
-  DRUMS,
-  MUSIC_MATS,
-  ROOMS,
-  SCREENS,
-  SEATS,
-  TABLES,
-} from "./layout.js";
+import { BEDS, DRUMS, MUSIC_MATS, ROOMS, SCREENS, TABLES } from "./layout.js";
 import { brocadeTexture, screenPainting } from "./surfacePainter.js";
 
 const C = {
@@ -99,60 +91,6 @@ export function createArchitecture({ walkMap, silkTexture }) {
       cyl(r, h, C.ink, x, 0, z, 8),
       box(r * 2.9, 0.055, r * 2.7, C.edge, x, 0.015, z),
     );
-  }
-  function seat(spec) {
-    const start = parts.length;
-    const { x, z, kind } = spec,
-      w = spec.w ?? 0.67,
-      d = spec.d ?? 0.59,
-      h = spec.h ?? 0.49;
-    if (kind === "stool") {
-      add(
-        vessel(
-          [
-            [0.23, 0],
-            [0.3, 0.04],
-            [0.25, 0.13],
-            [0.24, 0.3],
-            [0.3, 0.42],
-            [0.28, 0.47],
-          ],
-          C.jade,
-          x,
-          0,
-          z,
-        ),
-        ring(0.28, 0.014, C.gold, x, 0.44, z),
-      );
-      collision(walkMap, x, z, 0.6, 0.6, 0.5);
-      return;
-    }
-    for (const dx of [-1, 1])
-      for (const dz of [-1, 1])
-        foot(x + dx * (w / 2 - 0.05), z + dz * (d / 2 - 0.04), h, 0.032);
-    add(
-      box(w, 0.055, d, C.ink, x, h, z),
-      box(w - 0.07, 0.027, d - 0.05, C.jade, x, h + 0.055, z, MAT.cloth),
-    );
-    for (const dx of [-1, 1]) {
-      const sx = x + dx * (w / 2 - 0.035);
-      add(cyl(0.029, 0.79, C.ink, sx, h, z - d / 2, 8));
-      add(box(0.045, 0.05, d, C.ink, sx, 0.18, z));
-      add(box(0.035, 0.18, 0.035, C.ink, sx, h, z + d * 0.32));
-      add(box(0.04, 0.035, d * 0.9, C.ink, sx, h + 0.18, z));
-    }
-    add(
-      box(w, 0.055, 0.05, C.ink, x, h + 0.78, z - d / 2),
-      box(w * 0.59, 0.61, 0.025, C.jade, x, h + 0.13, z - d / 2),
-    );
-    add(box(w, 0.032, 0.03, C.ink, x, 0.2, z + d / 2));
-    if (spec.angle)
-      parts
-        .slice(start)
-        .forEach((g) =>
-          g.translate(-x, 0, -z).rotateY(spec.angle).translate(x, 0, z),
-        );
-    collision(walkMap, x, z, w, d, h + 1, spec.angle ?? 0);
   }
   function couch(b) {
     const { x, z, w, d, h } = b;
@@ -348,7 +286,7 @@ export function createArchitecture({ walkMap, silkTexture }) {
   }
   BEDS.forEach(couch);
   TABLES.forEach(table);
-  SEATS.forEach(seat);
+
   SCREENS.forEach(screen);
   // Han's basin belongs to the intact painted silhouette; do not duplicate it.
   const towel = panel(0.45, 0.86, 27.9, 0.04, -0.24, fabric);

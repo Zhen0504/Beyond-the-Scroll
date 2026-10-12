@@ -12,6 +12,18 @@ import {
 import { CHAPTERS } from "../src/scenes/world/hanxizai/story.js";
 import { GuidedTour } from "../src/scenes/world/hanxizai/GuidedTour.js";
 import {
+  PAPER_SEATS,
+  seatContact,
+  createPaperSeat,
+} from "../src/scenes/world/hanxizai/paperSeats.js";
+import {
+  MYSTERIES,
+  PEOPLE,
+  REFERENCES,
+  EPILOGUE,
+  recordAnswer,
+} from "../src/scenes/world/hanxizai/history.js";
+import {
   ACTION_CYCLES,
   actionFrame,
   stepPaperSpring,
@@ -246,28 +258,60 @@ test("reduced motion and resize keep rail/state consistent, subscribers detach",
   t.dispose();
 });
 
-test("chair fronts clear their paper sitters and occupied couches clear outer silhouettes", () => {
-  const ids = [
-    "li-jiaming",
-    "guest-listen-front",
-    "red-guest-dance",
-    "han-winds",
-    "farewell-seated",
-    "winds-clapper",
-  ];
-  for (let i = 0; i < SEATS.length; i++) {
-    const s = SEATS[i],
-      p = CAST.find((p) => p.id === ids[i]);
-    const extent =
-      s.kind === "stool"
-        ? 0.3
-        : (Math.abs(Math.sin(s.angle ?? 0)) * (s.w ?? 0.67)) / 2 +
-          (Math.abs(Math.cos(s.angle ?? 0)) * (s.d ?? 0.59)) / 2;
+test("painted chairs keep hip contact through every camera rail, including travel", () => {
+  assert.equal(
+    SEATS.length,
+    0,
+    "do not double up occupied chairs with rotated furniture",
+  );
+  for (const [id] of Object.entries(PAPER_SEATS)) {
+    const p = CAST.find((p) => p.id === id),
+      seat = createPaperSeat(p),
+      hip = seatContact(p);
     assert.ok(
-      s.z + extent < p.z - 0.035,
-      `${p.id}: furniture crosses paper plane`,
+      p.y + hip.y > 0.35 && p.y + hip.y < 0.65,
+      `${id}: sitting height`,
     );
+    const t = create();
+    t.openChapter(p.section);
+    t.enter();
+    settle(t);
+    const check = () => {
+      t.camera.updateMatrixWorld();
+      const a = new Vector3(p.x + hip.x, p.y + hip.y, p.z).project(t.camera);
+      const b = new Vector3(
+        p.x + hip.x,
+        p.y + hip.y,
+        p.z + seat.position.z,
+      ).project(t.camera);
+      if (Math.abs(a.x) < 1 && Math.abs(a.y) < 1 && a.z < 1)
+        assert.ok(
+          Math.hypot(a.x - b.x, a.y - b.y) * 720 < 2,
+          `${id}: perspective detaches hip from seat`,
+        );
+    };
+    check();
+    for (let i = 1; i < t.chapter.stops.length; i++) {
+      t.move(1);
+      for (let j = 0; j < 240; j++) {
+        t.update(1 / 60);
+        check();
+      }
+    }
+    seat.children.forEach((m) => {
+      const a = m.geometry.attributes.position;
+      for (let i = 0; i < a.count; i++)
+        assert.ok(a.getY(i) + p.y >= -0.02, `${id}: chair below floor`);
+    });
+    seat.userData.dispose();
   }
+});
+
+test("bed neighbors and occupied couches clear outer silhouettes", () => {
+  const neighbor = CAST.find((p) => p.id === "guest-listen-back"),
+    bed = BEDS[0];
+  const neighborHalf = (neighbor.h * neighbor.rect[2]) / neighbor.rect[3] / 2;
+  assert.ok(neighbor.x + neighborHalf < bed.x - bed.w / 2 - 0.12);
   for (const id of [
     "rest-lady-a",
     "rest-lady-b",
@@ -286,4 +330,40 @@ test("chair fronts clear their paper sitters and occupied couches clear outer si
       id,
     );
   }
+});
+
+test("all five mysteries explain both outcomes, allow correction, and retain independent progress", () => {
+  let answers = {};
+  for (let i = 0; i < MYSTERIES.length; i++) {
+    const m = MYSTERIES[i];
+    assert.equal(m.options.length, 3);
+    answers = recordAnswer(answers, i, (m.answer + 1) % 3);
+    assert.equal(answers[m.id].correct, false);
+    assert.ok(m.reveal && m.wrong && m.hint && m.bright && m.dark);
+    answers = recordAnswer(answers, i, m.answer);
+    assert.equal(answers[m.id].correct, true);
+    assert.equal(answers[m.id].attempts, 2);
+  }
+  assert.equal(Object.values(answers).filter((a) => a.correct).length, 5);
+  assert.equal(recordAnswer(answers, -1, 0), answers);
+  assert.equal(recordAnswer(answers, 0, 99), answers);
+  assert.equal(recordAnswer(answers, 0, undefined), answers);
+});
+
+test("profiles and ending retain claim-level sources and distinguish uncertain identities", () => {
+  for (const entry of [...MYSTERIES, ...PEOPLE, ...EPILOGUE.after]) {
+    assert.ok(entry.refs.length);
+    for (const ref of entry.refs)
+      assert.ok(REFERENCES[ref]?.url.startsWith("https://"), ref);
+  }
+  for (const p of PEOPLE) {
+    assert.ok(p.bio && p.scene && p.relation && p.boundary);
+    assert.ok(p.chapters.every((i) => CHAPTERS[i]));
+    if (p.portrait) assert.ok(CAST.some((c) => c.id === p.portrait));
+  }
+  assert.deepEqual(
+    EPILOGUE.after.slice(0, 3).map((e) => e.date),
+    ["970", "975", "978"],
+  );
+  assert.equal(new Set(MYSTERIES.map((m) => m.id)).size, 5);
 });

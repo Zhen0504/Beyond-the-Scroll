@@ -8,6 +8,7 @@ import {
 import { CAST } from "./cast.js";
 import { createPuppetAtlas } from "./puppetPainter.js";
 import { actionFrame, stepPaperSpring, wrapAngle } from "./puppetRig.js";
+import { createPaperSeat } from "./paperSeats.js";
 
 export function buildCast() {
   return CAST;
@@ -42,8 +43,11 @@ function makePuppet(person, cell, material) {
   mesh.name = person.id;
   mesh.position.set(person.x, person.y, person.z);
   mesh.frustumCulled = false;
+  const seat = createPaperSeat(person);
+  if (seat) mesh.add(seat);
   const puppet = {
     mesh,
+    seat,
     person,
     sourceUVs,
     cells: cell.frames,
@@ -97,18 +101,20 @@ export function createPuppetFigures({ spriteImages, walkMap, cast = CAST }) {
           ? 0
           : actionFrame(p.person.motion, time, p.phase),
       );
-      p.mesh.rotation.y = sway;
+      p.mesh.rotation.y = p.seat ? 0 : sway;
       // Quiet figures incline as a single piece, as a held shadow puppet would.
       p.mesh.rotation.z =
         sway * 0.12 +
-        (reducedMotion || p.cells.length > 1
+        (reducedMotion || p.seat || p.cells.length > 1
           ? 0
           : Math.sin(time * 1.1 + p.phase) * 0.006);
+      if (p.seat) p.mesh.rotation.z = 0;
     }
   }
   function dispose() {
     puppets.forEach((p) => {
       p.mesh.geometry.dispose();
+      p.seat?.userData.dispose();
     });
     material.dispose();
     atlas.texture.dispose();

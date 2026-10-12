@@ -144,14 +144,8 @@ export const TABLES = [
   { x: 4.7, z: -0.1, w: 1.8, d: 0.67, h: 0.73 },
   { x: 8.5, z: 0.7, w: 2.2, d: 0.75, h: 0.73 },
 ];
-export const SEATS = [
-  { x: 3.9, z: -1.2, kind: "chair" },
-  { x: 6.7, z: -0.05, kind: "chair", angle: -0.65 },
-  { x: 19.4, z: -1.08, kind: "chair", angle: -0.85 },
-  { x: 45, z: -1.97, kind: "chair", w: 1.2, d: 1, h: 0.58 },
-  { x: 55.9, z: -0.98, kind: "chair", w: 0.85 },
-  { x: 38.5, z: -1.4, kind: "stool" },
-];
+// Occupied chairs use the sitter's painted perspective; see paperSeats.js.
+export const SEATS = [];
 // The drum and mallet now share a registered painted pose, ensuring contact.
 export const DRUMS = [];
 export const MUSIC_MATS = [{ x: 41.35, z: -1.22, w: 4.15, d: 1.55 }];

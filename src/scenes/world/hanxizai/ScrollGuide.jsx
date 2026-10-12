@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Vector3 } from "three";
 import { CHAPTERS, SOURCES } from "./story.js";
+import NightArchive from "./NightArchive.jsx";
+import { MYSTERIES, REFERENCES, recordAnswer } from "./history.js";
 import "./ScrollGuide.css";
+import "./NightArchive.css";
 
 const NUMERALS = ["壹", "贰", "叁", "肆", "伍"];
+const ACTOR_PERSON = {
+  "han-listen": "han",
+  "han-drum": "han",
+  "han-rest": "han",
+  "han-winds": "han",
+  "han-farewell": "han",
+  pipa: "li",
+  dancer: "wang",
+};
 
 export default function ScrollGuide({ world, onExit }) {
   const tour = world.tour;
@@ -13,18 +25,41 @@ export default function ScrollGuide({ world, onExit }) {
   const plate = state.phase === "plate" || state.phase === "entering";
   const moving = state.phase !== "scene";
   const [sources, setSources] = useState(false);
+  const [archive, setArchive] = useState(null);
+  const [answers, setAnswers] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        sessionStorage.getItem("hanxizai-clues-v1") || "{}",
+      );
+      return MYSTERIES.reduce(
+        (acc, m, i) => recordAnswer(acc, i, saved[m.id]?.choice),
+        {},
+      );
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("hanxizai-clues-v1", JSON.stringify(answers));
+    } catch {
+      /* Private browsing may disable storage. */
+    }
+  }, [answers]);
+  const openArchive = (kind, person) => setArchive({ kind, person });
   const modalRef = useRef(null);
-  const modal = sources || state.phase === "paused";
+  const modal = !!archive || sources || state.phase === "paused";
   const bubbleRef = useRef(null),
     enterRef = useRef(null),
     nextRef = useRef(null);
   const [u0, u1] = chapter.paintingU;
   useEffect(() => {
+    if (modal) return;
     if (state.phase === "plate")
       enterRef.current?.focus({ preventScroll: true });
     if (state.phase === "scene")
       nextRef.current?.focus({ preventScroll: true });
-  }, [state.phase, state.chapter]);
+  }, [state.phase, state.chapter, modal]);
   useEffect(() => {
     const onKey = (e) => {
       if (
@@ -38,10 +73,11 @@ export default function ScrollGuide({ world, onExit }) {
         return;
       if (e.code === "Escape") {
         e.preventDefault();
-        if (sources) setSources(false);
+        if (archive) setArchive(null);
+        else if (sources) setSources(false);
         else state.phase === "paused" ? tour.resume() : tour.pause();
       }
-      if (sources || state.phase === "paused") return;
+      if (archive || sources || state.phase === "paused") return;
       const index = Number(e.code.replace("Digit", "")) - 1;
       if (e.code.startsWith("Digit") && CHAPTERS[index]) {
         e.preventDefault();
@@ -62,7 +98,7 @@ export default function ScrollGuide({ world, onExit }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tour, state.phase, sources]);
+  }, [tour, state.phase, sources, archive]);
   useEffect(() => {
     if (!modal) return;
     const previous = document.activeElement;
@@ -89,7 +125,7 @@ export default function ScrollGuide({ world, onExit }) {
       el.removeEventListener("keydown", trap);
       previous?.isConnected && previous.focus({ preventScroll: true });
     };
-  }, [modal, sources]);
+  }, [modal, sources, archive?.kind]);
   useEffect(() => {
     const person = world.figures.cast.find((p) => p.id === stop.actor);
     if (!person || !bubbleRef.current) return;
@@ -118,13 +154,18 @@ export default function ScrollGuide({ world, onExit }) {
     }
     position();
     return () => cancelAnimationFrame(raf);
-  }, [world, stop, state.phase, sources]);
+  }, [world, stop, state.phase, modal]);
   const last = state.stop === chapter.stops.length - 1;
-  const next = () => {
+  const advance = () => {
+    setArchive(null);
     if (!last) tour.move(1);
     else if (state.chapter < CHAPTERS.length - 1)
       tour.openChapter(CHAPTERS[state.chapter + 1].id);
-    else onExit();
+    else openArchive("ending");
+  };
+  const next = () => {
+    if (last && !answers[MYSTERIES[state.chapter].id]) openArchive("mystery");
+    else advance();
   };
   return (
     <section
@@ -145,6 +186,7 @@ export default function ScrollGuide({ world, onExit }) {
               key={c.id}
               onClick={() => tour.openChapter(c.id)}
               aria-current={i === state.chapter ? "step" : undefined}
+              data-clue={answers[MYSTERIES[i].id]?.correct || undefined}
               aria-label={`${i + 1} · ${c.name}`}
             >
               <i>{NUMERALS[i]}</i>
@@ -190,6 +232,16 @@ export default function ScrollGuide({ world, onExit }) {
               </figcaption>
             </figure>
             <p className="night-plate__intro">{chapter.intro}</p>
+            <p className="night-plate__thread">
+              <button onClick={() => openArchive("mystery")}>
+                暗线待解 · {MYSTERIES[state.chapter].title} ↗
+              </button>
+            </p>
+            {state.chapter === 0 && (
+              <p className="night-plate__context">
+                南唐晚期，北方强权步步逼近。走进一场私宴，看看一位有才名的大臣，如何面对君主的重用与自己的退意。
+              </p>
+            )}
             <button
               ref={enterRef}
               className="night-primary"
@@ -205,6 +257,10 @@ export default function ScrollGuide({ world, onExit }) {
             <p className="night-plate__credit">
               人物动作与对白为情境创作，遮挡处作画意补绘。
               <button onClick={() => setSources(true)}>读画依据</button>
+              <button onClick={() => openArchive("people")}>识席间人</button>
+              {state.chapter === 4 && (
+                <button onClick={() => openArchive("ending")}>读终章</button>
+              )}
             </p>
           </div>
         </div>
@@ -216,7 +272,7 @@ export default function ScrollGuide({ world, onExit }) {
             <span>{chapter.name}</span>
             <small>{chapter.verse}</small>
           </div>
-          {stop.actor && state.phase === "scene" && !sources && (
+          {stop.actor && state.phase === "scene" && !modal && (
             <div
               ref={bubbleRef}
               className="night-dialogue"
@@ -232,9 +288,21 @@ export default function ScrollGuide({ world, onExit }) {
               <p className="night-dialogue__line" aria-live="polite">
                 「{stop.lines[state.line]}」
               </p>
-              <button onClick={() => tour.nextLine()} aria-label="再听一句">
-                再听一句 <span>›</span>
-              </button>
+              <div className="night-dialogue__buttons">
+                {ACTOR_PERSON[stop.actor] && (
+                  <button
+                    className="night-dialogue__person"
+                    onClick={() =>
+                      openArchive("people", ACTOR_PERSON[stop.actor])
+                    }
+                  >
+                    人物笺 ↗
+                  </button>
+                )}
+                <button onClick={() => tour.nextLine()} aria-label="再听一句">
+                  再听一句 <span>›</span>
+                </button>
+              </div>
             </div>
           )}
           <footer className="night-route" inert={modal}>
@@ -248,7 +316,10 @@ export default function ScrollGuide({ world, onExit }) {
               </p>
               <span>{state.phase === "travel" ? "循席缓行…" : "停步观画"}</span>
             </div>
-            <p className="night-route__note">{stop.note}</p>
+            <p className="night-route__note">
+              <span className="night-route__thread-label">明线</span>
+              {stop.note}
+            </p>
             <div className="night-route__bottom">
               <button
                 onClick={() => tour.move(-1)}
@@ -277,21 +348,31 @@ export default function ScrollGuide({ world, onExit }) {
                   ? `走近 · ${chapter.stops[state.stop + 1].title}`
                   : state.chapter < 4
                     ? `展下一折 · ${CHAPTERS[state.chapter + 1].name}`
-                    : "曲终 · 合卷"}{" "}
+                    : "曲终 · 读终章"}{" "}
                 →
               </button>
             </div>
-            <button
-              className="night-route__source"
-              onClick={() => setSources(true)}
-            >
-              读画依据 · 对白为情境创作
-            </button>
+            <div className="night-route__tools">
+              <button onClick={() => openArchive("mystery")}>
+                暗线 ·{" "}
+                {answers[MYSTERIES[state.chapter].id]?.correct
+                  ? "重读线索"
+                  : "解开这一折"}
+                　{Object.values(answers).filter((a) => a.correct).length}/5
+              </button>
+              <button onClick={() => openArchive("people")}>识席间人 ↗</button>
+              <button
+                className="night-route__source"
+                onClick={() => setSources(true)}
+              >
+                依据 · 对白为创作
+              </button>
+            </div>
           </footer>
         </>
       )}
 
-      {state.phase === "paused" && !sources && (
+      {state.phase === "paused" && !sources && !archive && (
         <div
           ref={modalRef}
           className="night-modal"
@@ -325,13 +406,19 @@ export default function ScrollGuide({ world, onExit }) {
             <p className="night-eyebrow">画外笺</p>
             <h2>一夜，五段时光</h2>
             <p>
-              章节次序、人物身份和画面解读参照故宫博物院资料。史籍对作画缘起有不同记载，这里不把窥察或劝诫的说法当作唯一事实。
+              画面与传统释名参照故宫资料，生平与时代背景对读古籍。人物笺和解谜反馈逐段附有依据；研究者的具体推测单独说明。窥察、劝诫与自污避相均须放回各自的文献叙事中理解。
             </p>
             <p>
               悬浮对话由本项目创作，并非史料原话；动作也是据画意设计。人物被遮挡的轮廓作了补绘，家具距离为观览作了调整。
             </p>
             <ul>
-              {SOURCES.map((s) => (
+              {[
+                ...Object.values(REFERENCES),
+                ...SOURCES.filter(
+                  (s) =>
+                    !Object.values(REFERENCES).some((r) => r.url === s.url),
+                ),
+              ].map((s) => (
                 <li key={s.url}>
                   <a href={s.url} target="_blank" rel="noreferrer">
                     {s.title} ↗
@@ -347,6 +434,46 @@ export default function ScrollGuide({ world, onExit }) {
               回到席间
             </button>
           </div>
+        </div>
+      )}
+      {archive && (
+        <div
+          ref={modalRef}
+          className="night-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            archive.kind === "mystery"
+              ? "解开画外线索"
+              : archive.kind === "people"
+                ? "人物笺"
+                : "终章：画外余音"
+          }
+        >
+          <NightArchive
+            key={`${archive.kind}-${state.chapter}`}
+            kind={archive.kind}
+            chapter={state.chapter}
+            answers={answers}
+            initialPerson={archive.person}
+            world={world}
+            onAnswer={(i, choice) =>
+              setAnswers((a) => recordAnswer(a, i, choice))
+            }
+            onClose={() => setArchive(null)}
+            continuationLabel={last ? undefined : "回到席间 · 接着寻找"}
+            onContinue={
+              archive.kind === "ending"
+                ? onExit
+                : last
+                  ? advance
+                  : () => setArchive(null)
+            }
+            onChapter={(i) => {
+              setArchive(null);
+              tour.openChapter(CHAPTERS[i].id);
+            }}
+          />
         </div>
       )}
     </section>

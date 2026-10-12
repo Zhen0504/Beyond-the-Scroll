@@ -225,8 +225,8 @@ export const CAST = [
     id: "guest-listen-back",
     name: "执板宾客",
     section: "tingyue",
-    x: 6.28,
-    z: -2.8,
+    x: 5.8,
+    z: -3.5,
     h: 1.79,
     y: 0.02,
     motion: "listen",
@@ -248,10 +248,10 @@ export const CAST = [
     id: "guest-listen-right",
     name: "拱手宾客",
     section: "tingyue",
-    x: 5.85,
+    x: 5.55,
     z: -1.55,
     h: 1.25,
-    y: 0.04,
+    y: 0.49,
     motion: "listen",
     source: {
       x: 4485,
@@ -280,7 +280,7 @@ export const CAST = [
     x: 9.02,
     z: -2,
     h: 1.13,
-    y: 0.59,
+    y: 0.615,
     motion: "listen",
     source: {
       x: 4641,
@@ -309,7 +309,7 @@ export const CAST = [
     x: 8.03,
     z: -1.4,
     h: 1.3,
-    y: 0.59,
+    y: 0.615,
     motion: "listen",
     source: {
       x: 4713,
@@ -338,7 +338,7 @@ export const CAST = [
     x: 6.7,
     z: 0.62,
     h: 1.25,
-    y: 0.03,
+    y: 0.49,
     motion: "drink",
     source: {
       x: 4466,
@@ -674,7 +674,7 @@ export const CAST = [
     x: 27,
     z: -1.14,
     h: 1.13,
-    y: 0.6,
+    y: 0.635,
     motion: "wash",
     source: {
       x: 2469,
@@ -722,7 +722,7 @@ export const CAST = [
     x: 27.65,
     z: -2.02,
     h: 1.12,
-    y: 0.6,
+    y: 0.635,
     motion: "listen",
     source: {
       x: 2391,
@@ -751,7 +751,7 @@ export const CAST = [
     x: 28.5,
     z: -1.7,
     h: 1.18,
-    y: 0.6,
+    y: 0.635,
     motion: "listen",
     source: {
       x: 2521,
@@ -780,7 +780,7 @@ export const CAST = [
     x: 29.35,
     z: -1.84,
     h: 1.12,
-    y: 0.6,
+    y: 0.635,
     motion: "listen",
     source: {
       x: 2590,
@@ -809,7 +809,7 @@ export const CAST = [
     x: 30.2,
     z: -1.13,
     h: 1.11,
-    y: 0.6,
+    y: 0.635,
     motion: "listen",
     source: {
       x: 2618,
