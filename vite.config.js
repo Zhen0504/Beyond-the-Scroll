@@ -5,5 +5,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: './',
   plugins: [react()],
+  build: { rolldownOptions: { input: { main: 'index.html', paperPuppet: 'paper-puppet.html' } } },
   server: { port: 5173, open: true },
 });
