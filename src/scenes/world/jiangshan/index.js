@@ -6,6 +6,7 @@ import { WalkMap } from '../../../engine/WalkMap.js';
 import { createArchitecture, createHillBuildings } from './architecture.js';
 import { createBoats } from './boats.js';
 import { createChatter } from './chatter.js';
+import { RegionMusic } from './RegionMusic.js';
 import { createFigures } from './figures.js';
 import { createClouds } from './clouds.js';
 import { BOUNDS, MAIN_PATH, NORTH_PATH, SPAWN, STREAMS, STRUCTURES, ZONES } from './layout.js';
@@ -194,7 +195,12 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
       }
     }
   };
-  const controller = new FirstPersonController({ camera, dom: canvas, walkMap, spawn: SPAWN, onLockChange, onInteract: interact });
+  const music = new RegionMusic({
+    urls: ZONES.map(z => `${import.meta.env.BASE_URL}paintings/jiangshan-qiuse/music/${z.name}.mp3`),
+    boundaries: ZONES.slice(0, -1).map(z => z.maxX),
+  });
+  const controller = new FirstPersonController({ camera, dom: canvas, walkMap, spawn: SPAWN,
+    onLockChange: (locked) => { music.setPlaying(locked); onLockChange?.(locked); }, onInteract: interact });
   let promptTimer = 0;
   const updatePrompt = (dt) => {
     promptTimer -= dt;
@@ -237,6 +243,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
     boats.update(dt, controller.vehicle);
     figures.update(dt, camera.position);
     chatter?.update(dt);
+    music.update(camera.position.x, chatter?.isReading ?? false);
     leaves.update(dt, camera.position);
     updatePrompt(dt);
 
@@ -270,6 +277,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
   progress(1, '入画');
   return {
     controller,
+    music,
     boats,
     figures,
     camera,
@@ -280,9 +288,11 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
       raf = requestAnimationFrame(frame);
     },
     stop() {
+      music.setPlaying(false);
       cancelAnimationFrame(raf);
     },
     dispose() {
+      music.dispose();
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       controller.dispose();

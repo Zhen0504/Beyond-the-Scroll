@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { buildJiangshanWorld } from './jiangshan/index.js';
 import { buildHanxizaiWorld } from './hanxizai/index.js';
 import ScrollGuide from './hanxizai/ScrollGuide.jsx';
+import RegionMusicControl from './jiangshan/RegionMusicControl.jsx';
 import './WorldScene.css';
 
 const JIANGSHAN_KEYS = [
@@ -90,7 +91,10 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
     };
   }, [def]);
 
-  const enter = () => worldRef.current?.controller.lock();
+  const enter = () => {
+    worldRef.current?.music?.unlock();
+    worldRef.current?.controller.lock();
+  };
 
   const exit = () => {
     worldRef.current?.controller.unlock();
@@ -146,6 +150,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
                 <li key={k}><kbd>{k}</kbd>{label}</li>
               ))}
             </ul>
+            {worldRef.current?.music && <RegionMusicControl music={worldRef.current.music} />}
             <div className="world__actions">
               <button type="button" className="seal-btn" onClick={enter}>
                 {status === 'ready' ? '入画' : '续游'}

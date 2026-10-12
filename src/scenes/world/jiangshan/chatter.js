@@ -50,7 +50,9 @@ export function createChatter({ npcs, camera, container }) {
     return Math.min(...voice.speakers.map((s) => Math.hypot(s.x - p.x, s.z - p.z)));
   };
 
+  let isReading = false;
   function update(dt) {
+    isReading = false;
     const want = new Map();
     for (const voice of voices) {
       const d = near(voice);
@@ -97,6 +99,7 @@ export function createChatter({ npcs, camera, container }) {
         void b.el.offsetWidth;
         b.el.classList.add('is-new');
       }
+      if (visible) isReading = true;
       if (visible !== b.shown) {
         b.shown = visible;
         b.el.classList.toggle('is-shown', visible);
@@ -109,5 +112,5 @@ export function createChatter({ npcs, camera, container }) {
     bubbles.clear();
   }
 
-  return { update, dispose };
+  return { update, dispose, get isReading() { return isReading; } };
 }
