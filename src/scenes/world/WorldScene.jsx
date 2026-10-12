@@ -102,7 +102,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   };
 
   return (
-    <div className={`world world--${status}${guided ? '' : ' world--jiangshan'}`}>
+    <div className={`world world--${status}`}>
       <canvas ref={canvasRef} className="world__canvas" onClick={guided || status === 'playing' ? undefined : enter} />
       <div ref={overlayRef} className="world__bubbles" aria-live="polite" />
 
@@ -118,12 +118,6 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         <span className="world__badge-seal">画境</span>
         <span className="world__badge-title">{def.title}</span>
       </header>}
-
-      {!guided && worldRef.current?.music && !['loading', 'error'].includes(status) && (
-        <div className="world__music">
-          <RegionMusicControl music={worldRef.current.music} playing={status === 'playing'} />
-        </div>
-      )}
 
       {!guided && zone && (
         <div className="world__zone" key={zone.key} aria-live="polite">
@@ -156,7 +150,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
                 <li key={k}><kbd>{k}</kbd>{label}</li>
               ))}
             </ul>
-            <p className="world__music-hint">按 Esc 暂停后，可在右上角调整配乐。</p>
+            {worldRef.current?.music && <RegionMusicControl music={worldRef.current.music} />}
             <div className="world__actions">
               <button type="button" className="seal-btn" onClick={enter}>
                 {status === 'ready' ? '入画' : '续游'}
