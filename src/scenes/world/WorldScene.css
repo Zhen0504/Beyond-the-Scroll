@@ -341,17 +341,19 @@
   color: #1f1812;
 }
 
-.jiangshan-music { margin: -6px 0 22px; color: #4a3a28; font-size: 13px; }
-.jiangshan-music__title { margin: 0 0 10px; letter-spacing: .15em; }
-.jiangshan-music__controls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
-.jiangshan-music .ink-btn { padding: 5px 10px; font-size: 12px; }
-.jiangshan-music input { width: 110px; accent-color: var(--cinnabar); }
-.jiangshan-music p[role="status"] { max-width: 320px; margin: 10px auto 0; line-height: 1.8; }
-.world__card:has(.jiangshan-music) { box-sizing: border-box; min-width: 0; width: min(520px, calc(100vw - 32px)); }
+.world__music { position: absolute; top: 22px; right: 24px; z-index: 20; color: #4a3a28; }
+.world__music button { font-family: var(--font-serif); color: inherit; cursor: pointer; background: transparent; border: 0; }
+.world__music button:focus-visible { outline: 2px solid var(--cinnabar); outline-offset: 3px; }
+.world__music .night-music__heading button { border: 1px solid #8f7559; padding: 5px 9px; font-size: 11px; }
+.world__music .night-music__heading [aria-checked="true"] { background: #80513a; color: #fff1da; }
+.world__music .night-music__trigger:disabled { cursor: default; opacity: 1; }
+.world__music .night-music__start { display: block; color: #804531; padding: 6px 0; }
+.world__music .night-music__panel { box-sizing: border-box; }
+.world__music-hint { margin: -8px 0 22px; font-size: 12px; color: #68543c; line-height: 1.8; }
+.world--jiangshan .world__card { box-sizing: border-box; min-width: 0; width: min(520px, calc(100vw - 32px)); }
 @media (max-width: 480px) {
-  .world__card:has(.jiangshan-music) { padding: 28px 20px 24px; }
-  .world__card:has(.jiangshan-music) .world__keys { gap: 10px 16px; font-size: 12px; letter-spacing: .08em; }
-  .world__card:has(.jiangshan-music) .world__card-title { font-size: 36px; }
+  .world__music { top: 18px; right: 18px; }
+  .world--jiangshan .world__card { padding: 28px 20px 24px; }
+  .world--jiangshan .world__keys { gap: 10px 16px; font-size: 12px; letter-spacing: .08em; }
+  .world--jiangshan .world__card-title { font-size: 36px; }
 }
-.jiangshan-music .ink-btn { color: #4a3a28; border-color: rgba(74, 58, 40, .5); }
-.jiangshan-music .ink-btn:hover { color: #2c2620; border-color: #4a3a28; }
