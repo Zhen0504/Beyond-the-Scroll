@@ -1,0 +1,111 @@
+.night-tour__utilities {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.night-music {
+  position: relative;
+  pointer-events: auto;
+}
+.night-music__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 10px 0;
+}
+.night-music__panel {
+  position: absolute;
+  right: 0;
+  top: 43px;
+  width: 252px;
+  padding: 19px;
+  background: #eee2cbee;
+  border: 1px solid #ae9774;
+  box-shadow: 0 8px 25px #40342125;
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  text-align: left;
+}
+.night-music__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  letter-spacing: 2px;
+}
+.night-music__heading > span {
+  font-size: 15px;
+}
+.night-tour .night-music__heading button {
+  border: 1px solid #8f7559;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.night-tour .night-music__heading [aria-checked="true"] {
+  background: #80513a;
+  color: #fff1da;
+}
+.night-music__panel p {
+  font-size: 11px;
+  color: #76634b;
+  line-height: 1.8;
+  margin: 12px 0 16px;
+}
+.night-music__panel label {
+  display: flex;
+  justify-content: space-between;
+}
+.night-music__panel output {
+  font:
+    12px Georgia,
+    serif;
+}
+.night-music__panel input {
+  width: 100%;
+  margin: 8px 0 12px;
+  accent-color: #80513a;
+  cursor: pointer;
+  min-height: 24px;
+}
+.night-music__panel input:focus-visible {
+  outline: 2px solid #883e2c;
+  outline-offset: 3px;
+}
+.night-music__panel small {
+  display: block;
+  font-size: 10px;
+  color: #77634b;
+  line-height: 1.8;
+}
+.night-music__panel .night-music__credit {
+  font-size: 9px;
+  opacity: 0.85;
+  margin-top: 6px;
+}
+.night-tour .night-music__start {
+  color: #804531;
+  padding: 3px 0 12px;
+}
+@media (max-width: 700px) {
+  .night-tour__utilities {
+    gap: 12px;
+  }
+  .night-music__trigger > span {
+    display: none;
+  }
+  .night-music__trigger {
+    padding: 12px 0;
+  }
+  .night-music__panel {
+    width: min(252px, calc(100vw - 24px));
+  }
+}
+@media (max-width: 359px) {
+  .night-tour__header nav {
+    gap: 2px;
+  }
+  .night-tour__utilities {
+    gap: 7px;
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Vector3 } from "three";
 import { CHAPTERS, SOURCES } from "./story.js";
 import NightArchive from "./NightArchive.jsx";
+import MusicControl from "./MusicControl.jsx";
 import { MYSTERIES, REFERENCES, recordAnswer } from "./history.js";
 import "./ScrollGuide.css";
 import "./NightArchive.css";
@@ -49,6 +50,10 @@ export default function ScrollGuide({ world, onExit }) {
   const openArchive = (kind, person) => setArchive({ kind, person });
   const modalRef = useRef(null);
   const modal = !!archive || sources || state.phase === "paused";
+  useEffect(() => {
+    world.music.setReading(!!archive || sources);
+    return () => world.music.setReading(false);
+  }, [world, archive, sources]);
   const bubbleRef = useRef(null),
     enterRef = useRef(null),
     nextRef = useRef(null);
@@ -194,12 +199,15 @@ export default function ScrollGuide({ world, onExit }) {
             </button>
           ))}
         </nav>
-        <button
-          className="night-tour__original"
-          onClick={() => tour.showPainting()}
-        >
-          原卷 <kbd>R</kbd>
-        </button>
+        <div className="night-tour__utilities">
+          <button
+            className="night-tour__original"
+            onClick={() => tour.showPainting()}
+          >
+            原卷 <kbd>R</kbd>
+          </button>
+          <MusicControl music={world.music} />
+        </div>
       </header>
 
       {plate && (
@@ -246,7 +254,10 @@ export default function ScrollGuide({ world, onExit }) {
               ref={enterRef}
               className="night-primary"
               disabled={state.phase === "entering"}
-              onClick={() => tour.enter()}
+              onClick={() => {
+                world.music.activate();
+                tour.enter();
+              }}
             >
               {chapter.enter}
               <span> →</span>

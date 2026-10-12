@@ -15,6 +15,7 @@ import { createCandles } from "./candles.js";
 import { createPuppetFigures } from "./puppets.js";
 import { CAST } from "./cast.js";
 import { BOUNDS } from "./layout.js";
+import { NightMusic } from "./NightMusic.js";
 
 const TEX = `${import.meta.env.BASE_URL}paintings/hanxizai-yeyan/`;
 const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
@@ -103,6 +104,7 @@ export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
       onZone?.(chapter);
     },
   });
+  const music = new NightMusic(controller);
   progress(0.9, "缀节 · 纸偶入席");
   await nextFrame();
   renderer.renderer.compile(scene, camera);
@@ -148,6 +150,7 @@ export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
   return {
     mode: "guided",
     tour: controller,
+    music,
     architecture: arch,
     controller,
     camera,
@@ -158,11 +161,13 @@ export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
     start() {
       if (running || disposed) return;
       running = true;
+      music.setActive(true);
       last = performance.now();
       raf = requestAnimationFrame(frame);
     },
     stop() {
       running = false;
+      music.setActive(false);
       cancelAnimationFrame(raf);
     },
     dispose() {
@@ -171,6 +176,7 @@ export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
       running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      music.dispose();
       controller.dispose();
       scene.remove(figures.group);
       figures.dispose();
