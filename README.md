@@ -5,13 +5,14 @@
 当前进度：
 - **卷轴入口**：三轴陈列 → 点击展卷 → 名画介绍
 - **画境一 ·《江山秋色图》**：第一人称 2.5D/3D 可游览场景（介绍页点「入画」进入，或直接访问 `/#jiangshan`）
-- **画境二 ·《韩熙载夜宴图》**：室内夜宴厅基础画境（多进厅堂、屏风、榻案、烛光与皮影人物；`/#hanxizai` 直达）
+- **画境二 ·《韩熙载夜宴图》**：绢本留白画境（五段屏榻、完整透明纸偶、15 关节与动作轮播、原卷对照；`/#hanxizai` 直达）
 
 ## 运行
 
 ```bash
 npm install
 npm run dev      # 本地开发 http://localhost:5173
+npm test         # 人物素材完整性、蒙皮权重、动作与镜头弹簧回归
 npm run build    # 打包到 dist/
 npm run preview  # 预览打包结果
 ```
@@ -76,11 +77,14 @@ src/scenes/world/
      ├─ water.js / clouds.js / sky.js   顺流水纹与落叶、瀑布、留白云带、绢色天空与原画环幕
      └─ index.js                     组装与主循环
   └─ hanxizai/                       《韩熙载夜宴图》
-     ├─ layout.js                    五进厅堂、屏风、榻案、烛灯、人物位置
-     ├─ architecture.js              粉墙朱柱、梁枋地砖、屏风、榻、案、鼓
-     ├─ figures.js                   皮影纸片人物（Billboards）
-     ├─ candles.js                   烛台与火苗
-     └─ index.js                     组装与主循环
+     ├─ layout.js                    五段观看点、独立屏风、围榻/帐床、漆案与鼓
+     ├─ architecture.js / surfacePainter.js  细足漆木家具、帷幔、山水屏心与绢色留白
+     ├─ cast.js                      人物身份、原卷参照、透明素材范围、站位与关节点
+     ├─ puppetPainter.js             完整透明人物与动作帧图集（真实 alpha）
+     ├─ puppetRig.js / puppets.js     15 关节连续蒙皮、完整姿态轮播、视角转动阻尼
+     ├─ ScrollGuide.jsx / .css       五折切换与原卷局部对照
+     ├─ candles.js                   单盏高烛与原位火苗
+     └─ index.js                     组装、漫游、减少动态效果与资源释放
 public/paintings/jiangshan-qiuse/textures/
   ├─ backdrop.jpg                    原作全卷（去印章）—— 远景环幕
   ├─ rock-brush.jpg                  原作崖面笔触（无缝）—— 山石、坡岸纹理
@@ -106,3 +110,12 @@ public/paintings/jiangshan-qiuse/textures/
 《江山秋色图》图像来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Zhao_Boju,_Autumn_Colors_Over_Rivers_and_Mountains,_12_century,_Palace_Museum,_Beijing.jpg)（公有领域）。
 
 《韩熙载夜宴图》图像来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Gu_Hongzhong%27s_Night_Revels_1_complete_scene.jpg)（公有领域）。
+
+
+## 卷二 · 画意与皮影
+
+`1—5` 选看听乐、观舞、暂歇、清吹、散宴；`R` 展开对应原卷局部。暂停时也可点击底部导览。人物保持平面薄片形态，头颈、躯干、肩肘腕及下肢由关节驱动，衣物保持连续；举杯与舞袖使用对齐的完整姿态轮播，拨弦、击鼓、持扇各有动作。环顾带来轻微阻尼颤动，支持系统的「减少动态效果」。
+
+场景以原作的屏风、围榻和帐床组织空间。画中没有完整墙顶或建筑平面，因此留白与行走尺度属于艺术转译，不作南唐宅第复原的声明。详细核对、素材与验证说明见 [卷二改造说明](docs/hanxizai-art-direction.md)。
+
+`panorama-detail.jpg` 为同一 Wikimedia Commons 原文件（13,898 × 1,200）；既有 `panorama.jpg` 保持不变。人物保留以 5,200 × 449 为基准的原卷参照范围。透明人物采用内置 imagegen 参照原画提取与补绘，包含遮挡补全和新动作，是艺术转译而非无损原画抠图。高清全卷仅供原卷对照，不作为超宽 GPU 贴图上传。

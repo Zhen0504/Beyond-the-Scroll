@@ -1,0 +1,175 @@
+.night-guide {
+  position: absolute;
+  z-index: 12;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 32px));
+  color: #44392b;
+  font-family: var(--font-serif, "Noto Serif SC", serif);
+}
+.night-guide__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 25px;
+  padding: 12px 20px;
+  border-top: 1px solid #6e54394d;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #e6d6afba 20%,
+    #e6d6afba 80%,
+    transparent
+  );
+}
+.night-guide__label {
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: #756348;
+  white-space: nowrap;
+}
+.night-guide nav {
+  display: flex;
+  gap: 19px;
+}
+.night-guide button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px;
+}
+.night-guide nav button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.night-guide nav i {
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  width: 22px;
+  height: 25px;
+  color: #8b7153;
+  border: 1px solid transparent;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.night-guide [aria-current="step"] i {
+  color: #f3e4c3;
+  background: #944b38;
+  border-color: #813e2d;
+  box-shadow: inset 0 0 0 2px #c5876155;
+}
+.night-guide button:hover {
+  color: #923e2c;
+}
+.night-guide button:focus-visible {
+  outline: 2px solid #923e2c;
+  outline-offset: 4px;
+}
+.night-guide__compare {
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+.night-guide kbd {
+  font-size: 9px;
+  font-family: inherit;
+  margin-left: 7px;
+  border: 1px solid #86694a66;
+  padding: 0 4px;
+}
+.night-guide__hint {
+  text-align: center;
+  color: #766349;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  margin: 5px 0 0;
+}
+.night-reference {
+  background: #e5d2aef0;
+  border: 1px solid #80644965;
+  box-shadow: 0 8px 35px #32231326;
+  padding: 14px;
+  margin: 0 auto 18px;
+  width: min(620px, 100%);
+  box-sizing: border-box;
+}
+.night-reference figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  font-size: 16px;
+  letter-spacing: 0.15em;
+}
+.night-reference figcaption small {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+.night-reference__crop {
+  overflow: hidden;
+  position: relative;
+  max-height: 230px;
+  background: #99815c;
+}
+.night-reference img {
+  position: absolute;
+  top: 0;
+  max-width: none;
+  height: 100%;
+  object-fit: fill;
+}
+.night-reference p {
+  margin: 9px 0 5px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.night-reference__note {
+  font-size: 10px;
+  color: #796448;
+}
+@media (max-width: 720px) {
+  .night-guide {
+    bottom: 12px;
+  }
+  .night-guide__bar {
+    gap: 10px;
+    padding: 9px 0;
+  }
+  .night-guide__label {
+    display: none;
+  }
+  .night-guide nav {
+    gap: 5px;
+  }
+  .night-guide nav button {
+    font-size: 11px;
+    gap: 3px;
+  }
+  .night-guide nav i {
+    width: 17px;
+    height: 22px;
+  }
+  .night-guide__compare {
+    font-size: 10px !important;
+  }
+  .night-guide kbd {
+    display: none;
+  }
+  .night-reference figcaption small {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .night-guide nav i {
+    transition: none;
+  }
+}

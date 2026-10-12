@@ -1,30 +1,37 @@
-import { AdditiveBlending, CylinderGeometry, Mesh, ShaderMaterial } from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { MAT, box, cyl } from '../../../engine/painted.js';
-import { CANDLES } from './layout.js';
+import {
+  AdditiveBlending,
+  BufferAttribute,
+  CylinderGeometry,
+  Mesh,
+  ShaderMaterial,
+} from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { MAT, box, cyl } from "../../../engine/painted.js";
+import { CANDLES } from "./layout.js";
 
 /**
  * 烛台（工笔材质）与火苗（加色混合，随时间摇曳）。
  * 不改引擎光照模型，只在画面上点出暖烛光。
  */
 
-const BRONZE = '#8a6a3c';
-const DARK = '#3a2a18';
+const BRONZE = "#8a6a3c";
+const DARK = "#3a2a18";
 
 const FLAME_VERT = /* glsl */ `
 uniform float uTime;
+attribute vec3 aBase;
 varying vec2 vUv;
 varying float vFlick;
 void main() {
   vUv = uv;
-  vec3 p = position;
+  vec3 p = position - aBase;
   float t = uTime * 6.5 + position.x * 9.0 + position.z * 7.0;
   float flick = 0.85 + 0.15 * sin(t) + 0.08 * sin(t * 1.7);
   vFlick = flick;
-  p.x += sin(t * 1.3) * 0.04 * position.y;
-  p.z += cos(t * 1.1) * 0.03 * position.y;
+  p.x += sin(t * 1.3) * 0.04 * p.y;
+  p.z += cos(t * 1.1) * 0.03 * p.y;
   p.y *= flick;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p + aBase, 1.0);
 }
 `;
 
@@ -45,10 +52,19 @@ function candleStick(c) {
   const parts = [
     cyl(0.15, 0.08, BRONZE, c.x, 0, c.z, 10, MAT.plain),
     cyl(0.11, 0.05, BRONZE, c.x, 0.08, c.z, 10, MAT.plain),
-    cyl(0.055, Math.max(0.35, c.h - 0.28), BRONZE, c.x, 0.13, c.z, 8, MAT.plain),
+    cyl(
+      0.055,
+      Math.max(0.35, c.h - 0.28),
+      BRONZE,
+      c.x,
+      0.13,
+      c.z,
+      8,
+      MAT.plain,
+    ),
     cyl(0.12, 0.06, BRONZE, c.x, c.h - 0.2, c.z, 10, MAT.plain),
     cyl(0.08, 0.04, DARK, c.x, c.h - 0.15, c.z, 8, MAT.plain),
-    box(0.07, 0.2, 0.07, '#f0e4c4', c.x, c.h - 0.14, c.z, MAT.plain),
+    box(0.07, 0.2, 0.07, "#f0e4c4", c.x, c.h - 0.14, c.z, MAT.plain),
   ];
   return parts;
 }
@@ -73,6 +89,10 @@ export function createCandles({ atmosphere, walkMap, paintedMaterial }) {
   const flameGeos = CANDLES.map((c) => {
     const g = new CylinderGeometry(0.025, 0.06, 0.3, 8);
     g.translate(c.x, c.h + 0.12, c.z);
+    const bases = new Float32Array(g.attributes.position.count * 3);
+    for (let i = 0; i < g.attributes.position.count; i++)
+      bases.set([c.x, c.h + 0.12, c.z], i * 3);
+    g.setAttribute("aBase", new BufferAttribute(bases, 3));
     return g;
   });
   const flames = new Mesh(mergeGeometries(flameGeos), flameMat);

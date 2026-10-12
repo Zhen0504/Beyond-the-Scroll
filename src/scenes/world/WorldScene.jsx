@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildJiangshanWorld } from './jiangshan/index.js';
 import { buildHanxizaiWorld } from './hanxizai/index.js';
+import ScrollGuide from './hanxizai/ScrollGuide.jsx';
 import './WorldScene.css';
 
 const JIANGSHAN_KEYS = [
@@ -23,6 +24,7 @@ const BUILDERS = {
       ['Shift', '疾行'],
       ['空格', '跳跃'],
       ['鼠标', '环顾'],
+      ['1—5 / R', '换折 / 原卷对照'],
       ['Esc', '暂停'],
     ],
   },
@@ -119,6 +121,10 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
           <span className="world__zone-name">{zone.name}</span>
           <span className="world__zone-verse">{zone.verse}</span>
         </div>
+      )}
+
+      {paintingId === 'hanxizai-yeyan' && !['loading', 'error'].includes(status) && (
+        <ScrollGuide world={worldRef.current} zone={zone} active={status === 'playing'} />
       )}
 
       {status === 'loading' && (
