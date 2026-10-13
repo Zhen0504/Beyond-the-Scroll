@@ -209,7 +209,7 @@ test('五折进度全部上传材质，切折后已完成的区段保持重彩',
   assert.equal(uniforms.uHoverU0.value, FOLDS[2].u0, '高亮区间应切到本折');
 });
 
-test('容错：涂到非目标区不抛错、不倒退，且给出可覆盖的提示', () => {
+test('容错：涂到非目标区不抛错、不倒退，且给出可理解的范围提示', () => {
   const { r, events } = makeRestorer();
   r.setSpeed('full');
   r.setFold(0);
@@ -223,7 +223,29 @@ test('容错：涂到非目标区不抛错、不倒退，且给出可覆盖的�
   assert.ok(r.progress[otherFold] > 0, '颜色仍应落下（矿物颜料可以覆盖）');
   const off = events.find((e) => e.type === 'off-target');
   assert.ok(off, '应给出非目标区提示');
-  assert.ok(off.message.includes('覆盖'), '提示应指向「可以覆盖」而非报错');
+  assert.ok(off.message.includes('本折'), '提示应指明「不是本折的范围」');
+  assert.ok(off.message.includes('高亮'), '提示应引导回到高亮处');
+});
+
+test('完成状态明确：折内完成后发 fold-done，继续落笔不重复报完成', () => {
+  const { r, events } = makeRestorer();
+  r.setSpeed('full');
+  r.setFold(0);
+  const mid = (FOLDS[0].u0 + FOLDS[0].u1) / 2;
+
+  for (let i = 0; i < 40 && r.progress[0] < 1; i++) r.apply(mid);
+  assert.equal(r.progress[0], 1);
+
+  const countDone = () => events.filter((e) => e.type === 'fold-done').length;
+  assert.equal(countDone(), 1, '恰好报一次完成');
+
+  r.apply(mid);
+  r.apply(mid);
+  assert.equal(countDone(), 1, '已完成后不应重复发出 fold-done');
+  assert.ok(
+    events.filter((e) => e.type === 'paint-done').length >= 1,
+    '应发出 paint-done 作为「已足色」的轻提示',
+  );
 });
 
 test('速成档会预铺底色，且不覆盖已完成的进度', () => {

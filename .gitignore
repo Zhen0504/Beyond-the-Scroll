@@ -1,4 +1,9 @@
-node_modules/
+﻿node_modules/
 dist/
 .npm-cache/
 *.log
+__pycache__/
+*.pyc
+tools/_cdp*/
+tools/_upstream_pristine/
+tools/shots3/

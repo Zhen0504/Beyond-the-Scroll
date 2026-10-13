@@ -19,29 +19,47 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const [pigment, setPigment] = useState(PIGMENTS[0].id);
   const [speed, setSpeed] = useState('gentle');
   const [hint, setHint] = useState(null);
+  const [hintKind, setHintKind] = useState('guide');   // guide | nudge | done
   const [sources, setSources] = useState(false);
   const [lecture, setLecture] = useState(false);
+  const [tick, setTick] = useState(0);                 // 订阅敷彩进度，驱动完成标记
   const hintTimer = useRef(0);
 
   const chapter = CHAPTERS[state.chapter] ?? CHAPTERS[0];
   const plate = ['plate', 'entering'].includes(state.phase);
 
+  // 敷彩进度是命令式对象，用订阅把它的变化推给 React
+  useEffect(() => {
+    if (!restorer) return undefined;
+    const id = setInterval(() => setTick((t) => t + 1), 250);
+    return () => clearInterval(id);
+  }, [restorer]);
+
   // 敷彩事件 → 提示与解锁
   useEffect(() => {
     if (!paintEvent) return;
+    const show = (text, kind, ms) => {
+      setHint(text);
+      setHintKind(kind);
+      clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setHint(null), ms);
+    };
     switch (paintEvent.type) {
       case 'off-target':
+        show(paintEvent.message ?? '这一段不是本折的范围 —— 回到高亮处继续。', 'nudge', 6000);
+        break;
       case 'idle-hint':
-        setHint(paintEvent.message ?? '顺着残迹，为本折区段敷彩。');
-        clearTimeout(hintTimer.current);
-        hintTimer.current = setTimeout(() => setHint(null), 6000);
+        show('顺着残迹，为本折高亮的一段敷彩。', 'guide', 6000);
         break;
       case 'fold-done':
-        setHint('这一折的色已足了。');
-        clearTimeout(hintTimer.current);
-        hintTimer.current = setTimeout(() => setHint(null), 3200);
+        show('这一段已足色 —— 可换下一折。', 'done', 4200);
+        break;
+      case 'paint-done':
+        // 已完成区段继续落笔：只做一次轻提示，不重复报完成
+        show('这一段已足色，可换下一折。', 'done', 2200);
         break;
       case 'all-done':
+        setHint(null);
         setLecture(true);
         break;
       default:
@@ -78,6 +96,12 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 
   const snapshot = restorer?.snapshot?.() ?? { progress: [], done: 0 };
   const doneCount = snapshot.progress.filter((p) => p >= 1).length;
+  const foldProgress = snapshot.progress[state.chapter] ?? 0;
+  const foldDone = foldProgress >= 1;
+  const allDone = snapshot.progress.length > 0 && snapshot.progress.every((p) => p >= 1);
+  const pct = Math.round(foldProgress * 100);
+  // tick 由订阅定时器驱动：敷彩进度是命令式对象，需要它把变化带进渲染
+  void tick;
 
   const sourcesList = useMemo(() => {
     const seen = new Set();
@@ -187,12 +211,26 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
                 </button>
               ))}
             </div>
-            <div className="fuwang__meter" aria-label={`本折进度 ${doneCount} / ${CHAPTERS.length}`}>
-              <span>
-                本折 {Math.round((snapshot.progress[state.chapter] ?? 0) * 100)}%
-              </span>
-              <i style={{ transform: `scaleX(${snapshot.progress[state.chapter] ?? 0})` }} />
+
+            <div
+              className="fuwang__meter"
+              data-done={foldDone || undefined}
+              aria-label={
+                foldDone
+                  ? `本折已足色，全画完成 ${doneCount} / ${CHAPTERS.length}`
+                  : `本折进度 ${pct}%，全画完成 ${doneCount} / ${CHAPTERS.length}`
+              }
+            >
+              <span>{foldDone ? '本折 已足色' : `本折 ${pct}%`}</span>
+              <i style={{ transform: `scaleX(${foldDone ? 1 : (snapshot.progress[state.chapter] ?? 0)})` }} />
+              {/* 完成标记：常驻显示，不随提示消失 */}
+              {foldDone && (
+                <b className="fuwang__done" aria-hidden="true">
+                  已足色
+                </b>
+              )}
             </div>
+
             <div className="fuwang__tools">
               <button onClick={toggleSpeed} aria-pressed={speed === 'full'}>
                 {speed === 'gentle' ? '速成' : '全手作'} <kbd>F</kbd>
@@ -203,9 +241,20 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
           </div>
           {hint && (
-            <p className="fuwang__hint" role="status">
+            <p className={`fuwang__hint fuwang__hint--${hintKind}`} role="status">
               {hint}
             </p>
+          )}
+
+          {/* 五折全部完成：给一个明确、常驻的收束提示 */}
+          {allDone && (
+            <div className="fuwang__finished" role="status">
+              <b>五折已足色</b>
+              <span>整幅《鹿王本生》重彩既毕 —— 可读释文</span>
+              <button type="button" className="night-primary" onClick={() => setLecture(true)}>
+                读全画释文
+              </button>
+            </div>
           )}
         </>
       )}

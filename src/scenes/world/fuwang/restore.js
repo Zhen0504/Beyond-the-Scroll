@@ -192,13 +192,16 @@ export class Restorer {
       this.onEvent({
         type: 'off-target',
         index: where,
-        message: '矿物颜料可以覆盖 —— 再调一层，回到本折的区段继续。',
+        message: '这一段不是本折的范围 —— 回到高亮处继续。',
       });
       return next;
     }
     if (before < 1 && next >= 1) {
       this.onEvent({ type: 'fold-done', index: where, fold });
       if (this.allDone) this.onEvent({ type: 'all-done' });
+    } else if (before >= 1) {
+      // 已完成的区段继续落笔：不重复报完成，避免提示反复弹出
+      this.onEvent({ type: 'paint-done', index: where });
     } else {
       this.onEvent({ type: 'paint', index: where, progress: next });
     }

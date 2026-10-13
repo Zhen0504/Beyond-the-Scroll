@@ -164,6 +164,10 @@ void main() {
   float amount = max(paintMask, foldProgress);
   float cover = smoothstep(0.0, 0.85, clamp(amount, 0.0, 1.0));
 
+  // 完成度本身也带一点颗粒，避免整折"均匀淡入"的塑料感
+  float coverGrain = 0.88 + fuwangFbm(vec2(uv.x * 5.83, uv.y) * 46.0 + 3.0, 3) * 0.24;
+  cover *= coverGrain;
+
   vec3 mineral = vec3(uPigmentR, uPigmentG, uPigmentB);
   mineral *= 0.88 + pigIndex * 0.24;
 
@@ -171,25 +175,33 @@ void main() {
   rich = mix(vec3(lum), rich, 1.45);      // 显著提高饱和度
   rich = mix(rich, rich * vec3(1.06, 1.0, 0.94), 0.4);
   rich *= 1.12;
-  // 新的矿物层压在原色之上：既像矿物色，又保留线描与形
-  vec3 repainted = mix(rich, mineral, 0.52);
-  repainted = mix(repainted, repainted * (0.94 + fuwangFbm(vec2(uv.x * 5.83, uv.y) * 190.0 + 7.0, 3) * 0.14), 0.6);
+  rich *= 1.0 - lost * 0.12 - crack * 0.10;
 
-  // 只剩很少的病害残留：已重彩处几乎不见剥落
-  repainted *= 1.0 - lost * 0.12 - crack * 0.10;
+  // 两路复原，按「是否真的落过笔」分离 —— 这是修掉"全屏颜色暗示"的关键：
+  //   · 落笔处：矿物色覆盖（看得出用了哪种色，也有笔触颗粒）
+  //   · 未落笔处：只把原画色彩提回来，绝不掺入当前颜料的颜色
+  // 早先两者都经过同一路混色，导致只要某折有进度，整折就被当前颜料染一遍。
+  vec3 mineralLayer = mix(rich, mineral, 0.52);
+  float mineralGrain = fuwangFbm(vec2(uv.x * 5.83, uv.y) * 190.0 + 7.0, 3);
+  mineralLayer = mix(mineralLayer, mineralLayer * (0.94 + mineralGrain * 0.14), 0.6);
 
-  vec3 col = mix(faded, repainted, cover);
+  float brush = clamp(paintMask * 1.6, 0.0, 1.0);   // 仅落笔处
+  vec3 restored = mix(rich, mineralLayer, brush);
 
-  // 笔触湿边：未落色处的极细高光
+  vec3 col = mix(faded, restored, cover);
+
+  // 笔触湿边：同样只出现在落笔处
   float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
-  col += vec3(0.11, 0.095, 0.07) * edge * 0.55;
+  col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
 
   /* ---- 四、引导 ---- */
 
-  // 当前折区段的柔和呼吸高亮：只在暗淡处轻提，不破坏画面
+  // 当前折区段的柔和呼吸高亮：明确"这一段是本折要敷彩的范围"。
+  // 只在没有敷彩的地方提示，已着色处不再叠加。
   float inFold = step(uHoverU0, uv.x) * step(uv.x, uHoverU1);
   float breath = 0.5 + 0.5 * sin(uTime * 1.1);
-  col += vec3(0.055, 0.048, 0.032) * inFold * uHover * breath;
+  float hintZone = inFold * (1.0 - smoothstep(0.05, 0.35, amount));
+  col += vec3(0.075, 0.062, 0.040) * hintZone * uHover * breath;
 
   gl_FragColor = vec4(applyAtmosphere(col, vWorld), 1.0);
 }

@@ -100,12 +100,13 @@
     0 0 0 2px var(--gold);
 }
 
-/* ---------- 进度 ---------- */
+/* ---------- 进度与完成标记 ---------- */
 
 .fuwang__meter {
+  position: relative;
   display: grid;
   gap: 5px;
-  min-width: 104px;
+  min-width: 108px;
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--text-dim);
@@ -117,6 +118,80 @@
   transform-origin: 0 50%;
   background: linear-gradient(90deg, var(--cinnabar), var(--gold));
   transition: transform 0.3s ease-out;
+}
+
+/* 完成态：进度条转为金色，文字转亮，并常驻一枚小印 */
+.fuwang__meter[data-done] {
+  color: var(--gold-soft);
+}
+
+.fuwang__meter[data-done] i {
+  background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+  box-shadow: 0 0 8px rgb(201 168 106 / 55%);
+}
+
+.fuwang__done {
+  position: absolute;
+  right: -6px;
+  top: -15px;
+  padding: 2px 6px;
+  border: 1px solid rgb(167 54 43 / 70%);
+  border-radius: 2px;
+  background: rgb(167 54 43 / 88%);
+  color: #f6efe0;
+  font-family: var(--font-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  animation: fuwang-seal-in 0.5s ease-out both;
+}
+
+@keyframes fuwang-seal-in {
+  from {
+    opacity: 0;
+    transform: scale(1.5) rotate(-9deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-6deg);
+  }
+}
+
+/* 五折全部完成 */
+.fuwang__finished {
+  position: absolute;
+  left: 50%;
+  bottom: 122px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 16px 26px;
+  border: 1px solid rgb(201 168 106 / 45%);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgb(18 23 24 / 90%), rgb(8 10 11 / 94%));
+  box-shadow: 0 12px 36px rgb(0 0 0 / 60%);
+  color: var(--text);
+  font-family: var(--font-serif);
+  text-align: center;
+  animation: fuwang-hint-in 0.6s ease-out both;
+}
+
+.fuwang__finished b {
+  color: var(--gold-soft);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+}
+
+.fuwang__finished span {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.fuwang__finished .night-primary {
+  margin-top: 4px;
 }
 
 /* ---------- 工具 ---------- */
@@ -177,6 +252,23 @@
   font-size: 13px;
   letter-spacing: 0.06em;
   animation: fuwang-hint-in 0.45s ease-out both;
+}
+
+/* 三类提示用颜色区分：引导=中性，纠偏=朱砂，完成=金 */
+.fuwang__hint--guide {
+  border-left-color: rgb(201 168 106 / 70%);
+}
+
+.fuwang__hint--nudge {
+  border-left-color: var(--cinnabar);
+  background: rgb(38 14 12 / 88%);
+}
+
+.fuwang__hint--done {
+  border-left-color: var(--gold);
+  background: rgb(20 24 20 / 90%);
+  color: var(--gold-soft);
+  letter-spacing: 0.12em;
 }
 
 @keyframes fuwang-hint-in {
