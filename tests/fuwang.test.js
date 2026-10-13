@@ -8,7 +8,8 @@ import {
   FOLDS, MURAL, PIGMENTS, PIGMENT_KEYS, uToX, stopsForFold,
 } from '../src/scenes/world/fuwang/layout.js';
 import {
-  SHAPES, SHAPES_BY_FOLD, MASK_SLOTS, MASK_SLOT_W, MASK_SLOT_H,
+  SHAPES, SHAPES_BY_FOLD, MASK_SLOTS, MASK_COLS, MASK_ROWS,
+  MASK_SLOT_W, MASK_SLOT_H, MASK_DATA_W, MASK_DATA_H,
   foldShapes, shapesFor, shapeAt,
 } from '../src/scenes/world/fuwang/shapes.js';
 import {
@@ -80,19 +81,49 @@ test('蒙版图集与形体表齐备，槽位无冲突', () => {
     used.add(s.slot);
   }
   assert.ok(SHAPES.length >= 12, `形体数过少（${SHAPES.length}）`);
-  assert.equal(MASK_SLOT_W, 128);
-  assert.equal(MASK_SLOT_H, 64);
+  assert.ok(MASK_SLOT_W >= 256, `蒙版槽位过小（${MASK_SLOT_W}），轮廓会出锯齿`);
+  assert.ok(MASK_SLOT_H >= 128, `蒙版槽位过小（${MASK_SLOT_H}）`);
+  assert.ok(MASK_COLS * MASK_ROWS >= SHAPES.length, '图集格子数应容纳全部形体');
 });
 
-test('每个形体都有明确说明、颜料、包围盒，且包围盒非退化', () => {
+test('每个形体都有明确说明、颜料、包围盒与生成模式', () => {
   for (const s of SHAPES) {
     assert.ok(s.id && s.fold && s.what, `${JSON.stringify(s)} 缺少标识或说明`);
     assert.ok(PIGMENT_KEYS.includes(s.p), `${s.id} 颜料须在颜料盘内`);
     assert.ok(s.what.length >= 2, `${s.id} 要说明画面上是什么（当前「${s.what}」）`);
+    assert.ok(['grow', 'rect'].includes(s.mode), `${s.id} 生成模式须为 grow 或 rect`);
     const [u0, v0, u1, v1] = s.box;
     assert.ok(u1 > u0 && v1 > v0, `${s.id} 包围盒必须非退化`);
     assert.ok(u0 >= 0 && u1 <= 1 && v0 >= 0 && v1 <= 1, `${s.id} 包围盒须在画幅内`);
   }
+});
+
+test('平涂色域（rect）会被标记为柔边，免得看出一个梯形', () => {
+  const rects = SHAPES.filter((s) => s.mode === 'rect');
+  assert.ok(rects.length >= 1, '应存在平涂色域');
+  for (const s of rects) {
+    assert.ok(
+      s.what.includes('地') || s.what.includes('壁') || s.what.includes('水'),
+      `${s.id}「${s.what}」看起来不像平涂色域，请确认是否该用 rect`,
+    );
+  }
+
+  const { r, uniforms } = makeRestorer();
+  r.setFold(0);
+  const softShape = shapesFor(FOLDS[0].id, 'tuhong').find((s) => s.mode === 'rect');
+  assert.ok(softShape, '第一折应有平涂色域（地色）');
+  r.setPigment('tuhong');
+  const idx = Array.from(uniforms.uShapeSlot.value).indexOf(softShape.slot);
+  assert.ok(idx >= 0, '该色域应在高亮队列里');
+  assert.equal(uniforms.uShapeSoft.value[idx], 1, '平涂色域应标记为柔边');
+
+  // 有轮廓的形体不应柔边
+  r.setPigment('shilv');
+  const organic = shapesFor(FOLDS[0].id, 'shilv').find((s) => s.mode === 'grow');
+  assert.ok(organic);
+  const oi = Array.from(uniforms.uShapeSlot.value).indexOf(organic.slot);
+  assert.ok(oi >= 0);
+  assert.equal(uniforms.uShapeSoft.value[oi], 0, '有轮廓的形体不应柔边');
 });
 
 test('形体落在所属折的区间内（否则本折机位看不到、点不着）', () => {
@@ -215,6 +246,7 @@ function makeUniforms() {
       })),
     },
     uShapeSlot: { value: new Array(MAX_ACTIVE_SHAPES).fill(0) },
+    uShapeSoft: { value: new Array(MAX_ACTIVE_SHAPES).fill(0) },
   };
 }
 

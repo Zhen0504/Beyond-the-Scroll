@@ -26,13 +26,17 @@ SRC = ROOT / "public" / "paintings" / "fuwang-bensheng" / "panorama.jpg"
 OUT_PNG = ROOT / "public" / "paintings" / "fuwang-bensheng" / "masks.png"
 OUT_JS = ROOT / "src" / "scenes" / "world" / "fuwang" / "shapes.js"
 
-SLOTS = 24
-SLOT_W = 128       # 每个槽位在图集中占的宽度（含两侧黑边）
-SLOT_DATA_W = 120  # 槽位里真正放蒙版的宽度
-SLOT_H = 64        # 槽位高（含上下黑边）
-SLOT_DATA_H = 56   # 槽位里真正放蒙版的高度
-SLOT_PAD_X = 4     # 槽位与相邻槽位之间的黑色留边（左右各一）
-SLOT_PAD_Y = 4     # 上下留边
+SLOTS = 20         # 形体数上限
+SLOT_COLS = 5      # 图集列数
+SLOT_ROWS = 4      # 图集行数（5×4 = 20）
+SLOT_W = 512       # 每个槽位在图集中占的宽度
+SLOT_H = 256       # 槽位高
+SLOT_DATA_W = 496  # 槽位里真正放蒙版的宽度（两侧各留 8px 黑边）
+SLOT_DATA_H = 240  # 真正放蒙版的高度
+SLOT_PAD_X = 8
+SLOT_PAD_Y = 8
+ATLAS_W = SLOT_W * SLOT_COLS
+ATLAS_H = SLOT_H * SLOT_ROWS
 
 # 折的 u 区间 —— 须与 src/scenes/world/fuwang/layout.js 的 FOLDS 一致。
 # 形体的包围盒会夹到这个范围内：越出本折的部分在本折机位下看不到、也点不着。
@@ -179,10 +183,16 @@ def hue_mask(a: np.ndarray, box_uv, pigment: str, sat_min=0.18, val_min=0.16):
 
 
 def smooth(mask: np.ndarray, it: int = 2) -> np.ndarray:
-    """闭运算补小洞 + 开运算去毛刺"""
+    """闭运算补小洞 + 开运算去毛刺，再高斯平滑一次边界。
+
+    泛洪取出的边界天然带着壁画上的凹凸与噪点；直接当轮廓用会显得毛糙。
+    这里做一次轻度的形态学清理与高斯平滑，轮廓就顺了。
+    """
     m = ndimage.binary_closing(mask, structure=np.ones((5, 5)), iterations=it)
     m = ndimage.binary_opening(m, structure=np.ones((3, 3)), iterations=1)
-    return m
+    # 高斯平滑后重新二值化 —— 边界更顺，但不改变整体形状
+    soft = ndimage.gaussian_filter(m.astype(np.float32), sigma=2.2)
+    return soft > 0.5
 
 
 def main() -> int:
@@ -191,7 +201,7 @@ def main() -> int:
     H, W, _ = a.shape
     print(f"壁画 {W}×{H}")
 
-    atlas = np.zeros((SLOT_H, SLOT_W * SLOTS), dtype=np.uint8)
+    atlas = np.zeros((ATLAS_H, ATLAS_W), dtype=np.uint8)
     out = []
     preview = im.copy()
     pd = ImageDraw.Draw(preview)
@@ -242,8 +252,11 @@ def main() -> int:
         slot_img = Image.fromarray((crop * 255).astype(np.uint8))
         slot_img = slot_img.resize((SLOT_DATA_W, SLOT_DATA_H), Image.BILINEAR)
         sl = np.asarray(slot_img)
-        atlas[SLOT_PAD_Y:SLOT_PAD_Y + SLOT_DATA_H,
-              i * SLOT_W + SLOT_PAD_X:i * SLOT_W + SLOT_PAD_X + SLOT_DATA_W] = sl
+        col = i % SLOT_COLS
+        row = i // SLOT_COLS
+        ox = col * SLOT_W + SLOT_PAD_X
+        oy = row * SLOT_H + SLOT_PAD_Y
+        atlas[oy:oy + SLOT_DATA_H, ox:ox + SLOT_DATA_W] = sl
 
         out.append(dict(
             id=s["id"], fold=s["fold"], p=s["p"], what=s["what"],
@@ -293,10 +306,10 @@ def write_js(shapes: list[dict]) -> None:
         " */",
         "",
         f"export const MASK_SLOTS = {SLOTS};",
+        f"export const MASK_COLS = {SLOT_COLS};",
+        f"export const MASK_ROWS = {SLOT_ROWS};",
         f"export const MASK_SLOT_W = {SLOT_W};",
         f"export const MASK_SLOT_H = {SLOT_H};",
-        f"export const MASK_PAD_X = {SLOT_PAD_X};",
-        f"export const MASK_PAD_Y = {SLOT_PAD_Y};",
         f"export const MASK_DATA_W = {SLOT_DATA_W};",
         f"export const MASK_DATA_H = {SLOT_DATA_H};",
         "",
@@ -307,7 +320,7 @@ def write_js(shapes: list[dict]) -> None:
         lines.append(
             "  { "
             f"id: '{s['id']}', fold: '{s['fold']}', p: '{s['p']}', what: '{s['what']}', "
-            f"slot: {s['slot']}, "
+            f"slot: {s['slot']}, mode: '{s.get('mode', 'grow')}', "
             f"box: [{s['u0']}, {s['v0']}, {s['u1']}, {s['v1']}] "
             "},"
         )

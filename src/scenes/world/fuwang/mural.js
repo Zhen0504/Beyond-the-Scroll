@@ -110,13 +110,16 @@ uniform float uFold4;
 // xy = 该形体包围盒的左下角，zw = 包围盒尺寸（壁画 uv）
 uniform vec4 uShapeBounds[8];
 uniform float uShapeSlot[8];
+// 该形体的生成模式：1 = 平涂色域（地色、殿壁等，边缘要柔化），0 = 有清晰边界的形体
+uniform float uShapeSoft[8];
 // 该形体是否已敷彩（1 = 已上色，不再高亮）
 uniform float uShapeDone[8];
-// 形体蒙版图集（宽 = 槽位数 × 128，高 = 64）
+// 形体蒙版图集：按 MASK_COLS × MASK_ROWS 排布，每槽四周留黑
 uniform sampler2D uMasks;
-uniform vec2 uMaskGrid;      // 单个槽位在整张图集 uv 上所占比例
-uniform vec2 uMaskPad;       // 槽内留边（占槽位比例）
-uniform vec2 uMaskData;      // 数据区（占槽位比例）
+uniform vec2 uMaskGrid;      // 1 / (列数, 行数)
+uniform vec2 uMaskPad;       // 槽内留边（占单槽比例）
+uniform vec2 uMaskData;      // 数据区（占单槽比例）
+uniform float uMaskCols;     // 列数
 // 当前笔刷大小（uv），供界面显示与着色器圈出笔尖
 uniform float uBrushSize;
 // 调试：>0.5 时只输出高亮蒙版（用于核对轮廓）
@@ -226,13 +229,26 @@ void main() {
     // 落到该形体包围盒内才取蒙版（省采样，也避免串槽）
     vec2 local = (uv - b.xy) / b.zw;
     if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) continue;
-    // 槽位两侧留了黑边，取样要落在数据区内 —— 否则相邻槽位会串色
+    // 槽位按网格排布，槽内又留了黑边：映射到该槽的数据区
+    float col = mod(uShapeSlot[i], uMaskCols);
+    float row = floor(uShapeSlot[i] / uMaskCols);
+    vec2 cell = vec2(col, row) * uMaskGrid;
     vec2 c = uMaskPad + local * uMaskData;
-    vec2 muv = vec2((uShapeSlot[i] + c.x) * uMaskGrid.x, c.y * uMaskGrid.y);
+    vec2 muv = cell + c * uMaskGrid;
     float m = texture2D(uMasks, muv).r;
+
+    // 平涂色域（地色、殿壁）本身没有轮廓，若沿矩形硬切会看出一个梯形。
+    // 把边缘柔化，并用噪声打散，使它像一片自然的色域而不是几何块。
+    if (uShapeSoft[i] > 0.5) {
+      vec2 e = min(local, 1.0 - local);
+      float edge = min(e.x, e.y);
+      float wob = fuwangFbm(uv * vec2(26.0, 9.0) + 3.0, 3) - 0.5;
+      m *= smoothstep(0.0, 0.14 + wob * 0.07, edge);
+    }
+
     target = max(target, m);
-    // 轮廓描边：蒙版边缘一圈，帮助看清「该敷的是这一块」
-    rim = max(rim, smoothstep(0.10, 0.45, m) * (1.0 - smoothstep(0.55, 0.92, m)));
+    // 轮廓描边：只取蒙版边缘很窄的一圈，勾出形体形状
+    rim = max(rim, smoothstep(0.34, 0.60, m) * (1.0 - smoothstep(0.68, 0.90, m)));
   }
   target = smoothstep(0.25, 0.75, target);
   rim = smoothstep(0.15, 0.85, rim) * (1.0 - target * 0.55);
@@ -339,8 +355,9 @@ void main() {
     gl_FragColor = prev;
     return;
   }
+  vec2 cell = vec2(mod(uSlot, uMaskCols), floor(uSlot / uMaskCols)) * uMaskGrid;
   vec2 c = uMaskPad + local * uMaskData;
-  vec2 muv = vec2((uSlot + c.x) * uMaskGrid.x, c.y * uMaskGrid.y);
+  vec2 muv = cell + c * uMaskGrid;
   float m = smoothstep(0.30, 0.70, texture2D(uMasks, muv).r);
   if (m <= 0.001) {
     gl_FragColor = prev;
@@ -379,11 +396,13 @@ export function createMuralMaterial({ map, atmosphere }) {
         value: Array.from({ length: 8 }, () => new Vector4(0, 0, 0, 0)),
       },
       uShapeSlot: { value: new Float32Array(8) },
+      uShapeSoft: { value: new Float32Array(8) },
       uShapeDone: { value: new Float32Array(8) },
       uMasks: { value: null },
-      uMaskGrid: { value: new Vector2(1 / 24, 1) },
-      uMaskPad: { value: new Vector2(4 / 128, 4 / 64) },
-      uMaskData: { value: new Vector2(120 / 128, 56 / 64) },
+      uMaskGrid: { value: new Vector2(1 / 5, 1 / 4) },
+      uMaskPad: { value: new Vector2(8 / 512, 8 / 256) },
+      uMaskData: { value: new Vector2(496 / 512, 240 / 256) },
+      uMaskCols: { value: 5 },
       uBrushSize: { value: 0.003 },
       uDebugMask: { value: 0 },
       uFold0: { value: 0 },
@@ -461,9 +480,10 @@ export class PaintCanvas {
       depthWrite: false,
       uniforms: {
         uMasks: { value: null },
-        uMaskGrid: { value: new Vector2(1 / 24, 1) },
-        uMaskPad: { value: new Vector2(4 / 128, 4 / 64) },
-        uMaskData: { value: new Vector2(120 / 128, 56 / 64) },
+        uMaskGrid: { value: new Vector2(1 / 5, 1 / 4) },
+        uMaskPad: { value: new Vector2(8 / 512, 8 / 256) },
+        uMaskData: { value: new Vector2(496 / 512, 240 / 256) },
+        uMaskCols: { value: 5 },
         uAxisX: { value: 1 },
         uBox: { value: new Vector4(0, 0, 1, 1) },
         uSlot: { value: 0 },
@@ -477,9 +497,9 @@ export class PaintCanvas {
   }
 
   /** 蒙版图集：认形敷彩的依据 */
-  setMaskAtlas(texture, slots) {
+  setMaskAtlas(texture, grid) {
     this.maskTexture = texture;
-    this.maskSlots = slots ?? 24;
+    this.maskGrid = grid ?? { cols: 5, rows: 4 };
     return this;
   }
 
@@ -541,12 +561,13 @@ export class PaintCanvas {
    */
   fillShape(shape, index, opts = {}) {
     if (!this.maskTexture) return false;
-    const slots = opts.slots ?? this.maskSlots ?? 24;
+    const grid = opts.grid ?? this.maskGrid ?? { cols: 5, rows: 4 };
     const [u0, v0, u1, v1] = shape.box;
 
     const u = this.fillMaterial.uniforms;
     u.uMasks.value = this.maskTexture;
-    u.uMaskGrid.value.set(1 / slots, 1);
+    u.uMaskGrid.value.set(1 / grid.cols, 1 / grid.rows);
+    u.uMaskCols.value = grid.cols;
     u.uBox.value.set(u0, v0, u1 - u0, v1 - v0);
     u.uSlot.value = shape.slot;
     u.uIndex.value = index;

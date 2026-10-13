@@ -368,6 +368,13 @@ export class Restorer {
         slots[i] = active[i] ? active[i].slot : 0;
       }
     }
+    // 平涂色域的边缘要柔化，否则沿矩形硬切会看出一个梯形
+    const soft = m.uShapeSoft?.value;
+    if (soft) {
+      for (let i = 0; i < soft.length; i++) {
+        soft[i] = active[i]?.mode === 'rect' ? 1 : 0;
+      }
+    }
   }
 
   snapshot() {

@@ -25,11 +25,12 @@ def parse_shapes():
     out = []
     for m in re.finditer(
         r"\{\s*id:\s*'([^']+)',\s*fold:\s*'([^']+)',\s*p:\s*'([^']+)',\s*"
-        r"what:\s*'([^']+)',\s*slot:\s*(\d+),\s*box:\s*\[([^\]]+)\]\s*\}",
+        r"what:\s*'([^']+)',\s*slot:\s*(\d+),\s*mode:\s*'([^']+)',\s*box:\s*\[([^\]]+)\]\s*\}",
         text,
     ):
         out.append(dict(id=m.group(1), p=m.group(3), what=m.group(4),
-                        slot=int(m.group(5)), box=[float(x) for x in m.group(6).split(",")]))
+                        slot=int(m.group(5)), mode=m.group(6),
+                        box=[float(x) for x in m.group(7).split(",")]))
     return out
 
 

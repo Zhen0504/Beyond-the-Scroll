@@ -18,7 +18,7 @@ import { GuidedTour } from '../hanxizai/GuidedTour.js';
 import { PaintCanvas, createMuralMaterial } from './mural.js';
 import { Restorer } from './restore.js';
 import { BOUNDS, FOLDS, MURAL, PIGMENTS } from './layout.js';
-import { MASK_SLOTS } from './shapes.js';
+import { MASK_COLS, MASK_ROWS } from './shapes.js';
 import { CHAPTERS } from './story.js';
 
 /**
@@ -81,7 +81,8 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
   maskTex.wrapS = ClampToEdgeWrapping;
   maskTex.wrapT = ClampToEdgeWrapping;
   muralMat.uniforms.uMasks.value = maskTex;
-  muralMat.uniforms.uMaskGrid.value.set(1 / MASK_SLOTS, 1);
+  muralMat.uniforms.uMaskGrid.value.set(1 / MASK_COLS, 1 / MASK_ROWS);
+  muralMat.uniforms.uMaskCols.value = MASK_COLS;
 
   // 敷彩笔触累积画布：贴图保持画幅比例，避免横向被拉伸
   const maxTex = renderer.renderer.capabilities?.maxTextureSize ?? 4096;
@@ -90,7 +91,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     width: paintW,
     height: Math.max(256, Math.round((paintW * MURAL.texHeight) / MURAL.texWidth)),
   });
-  paintCanvas.setMaskAtlas(maskTex, MASK_SLOTS);
+  paintCanvas.setMaskAtlas(maskTex, { cols: MASK_COLS, rows: MASK_ROWS });
   muralMat.uniforms.uPaint.value = paintCanvas.read;
 
   progress(0.66, '敷彩 · 矿物入色');
