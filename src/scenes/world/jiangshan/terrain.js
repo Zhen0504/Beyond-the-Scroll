@@ -255,7 +255,7 @@ export function walkSlopeHeight(x, z) {
 /* ------------------------------------------------------------------ */
 /* 地形网格                                                            */
 /* ------------------------------------------------------------------ */
-export const INNER = { minX: -340, maxX: 300, minZ: -230, maxZ: 210, step: 1.25 };
+export const INNER = { minX: -340, maxX: 380, minZ: -230, maxZ: 210, step: 1.25 };
 
 function gridMesh(minX, maxX, minZ, maxZ, step, heightFn) {
   const w = maxX - minX, d = maxZ - minZ;

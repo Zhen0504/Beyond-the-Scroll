@@ -7,7 +7,7 @@ import { createArchitecture, createHillBuildings } from './architecture.js';
 import { createBoats } from './boats.js';
 import { createChatter } from './chatter.js';
 import { RegionMusic } from './RegionMusic.js';
-import { createFigures } from './figures.js';
+import { createPaintedFigures } from './paintedFigures.js';
 import { createClouds } from './clouds.js';
 import { BOUNDS, MAIN_PATH, NORTH_PATH, SPAWN, STREAMS, STRUCTURES, ZONES } from './layout.js';
 import { createRockMaterial, createRocks } from './rocks.js';
@@ -139,14 +139,14 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
   await nextFrame();
   const rocks = createRocks({ material: createRockMaterial({ atmosphere, brushTexture: brush }), heightAt, walkMap, avoid });
   rocks.meshes.forEach((m) => scene.add(m));
-  const hills = createHillBuildings({ material: arch.material, heightAt, rocks, walkMap });
+  const hills = createHillBuildings({ material: arch.material, heightAt, rocks, walkMap, terrainMeshes:terrain.meshes });
   hills.meshes.forEach((m) => scene.add(m));
 
   progress(0.7, '点染·林木');
   await nextFrame();
   const veg = createVegetation({ atmosphere, walkMap, avoid, rocks });
   veg.meshes.forEach((m) => scene.add(m));
-  const figures = createFigures({ material: arch.material, atmosphere, walkMap });
+  const figures = await createPaintedFigures({ atmosphere, walkMap, rooms:arch.rooms, viewPaths:hills.viewPaths });
   scene.add(figures.group);
 
   progress(0.85, '渲染·江水云烟');
@@ -165,7 +165,8 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
 
   // 近裁剪面取 0.2：深度精度提高一倍，远处房屋细部不易闪烁
   const camera = new PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.2, 4000);
-  const chatter = overlay ? createChatter({ npcs: figures.npcs, camera, container: overlay }) : null;
+  if(import.meta.env.DEV)window.__jiangshanInspect={scene,camera,figures,arch,hills,boats,walkMap};
+  const chatter = overlay ? createChatter({ npcs: [...figures.npcs,...boats.npcs], camera, container: overlay, scene }) : null;
 
   /* ---------------- 登船 / 上岸 ---------------- */
   let promptText = null;
@@ -279,7 +280,8 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
     controller,
     music,
     boats,
-    figures,
+    figures, chatter,
+    architecture:arch, hillBuildings:hills,
     camera,
     scene,
     walkMap,
@@ -297,6 +299,8 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
       window.removeEventListener('resize', onResize);
       controller.dispose();
       chatter?.dispose();
+      figures.dispose();
+      if(import.meta.env.DEV)delete window.__jiangshanInspect;
       scene.traverse((o) => {
         o.geometry?.dispose();
         if (o.material) {
