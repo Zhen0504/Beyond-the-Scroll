@@ -13,6 +13,7 @@ function worldFromHash() {
   const h = window.location.hash.replace(/^#/, '');
   if (h === 'jiangshan' || h === 'jiangshan-qiuse') return { name: 'world', id: 'jiangshan-qiuse' };
   if (h === 'hanxizai' || h === 'hanxizai-yeyan') return { name: 'world', id: 'hanxizai-yeyan' };
+  if (h === 'fuwang' || h === 'fuwang-bensheng' || h === 'jiuse') return { name: 'world', id: 'fuwang-bensheng' };
   return { name: 'entry' };
 }
 

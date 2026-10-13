@@ -33,6 +33,7 @@ import {
 const create = (aspect = 1.5, reducedMotion = false) =>
   new GuidedTour({
     camera: new PerspectiveCamera(48, aspect, 0.1, 100),
+    chapters: CHAPTERS,
     reducedMotion,
   });
 const settle = (t) => {

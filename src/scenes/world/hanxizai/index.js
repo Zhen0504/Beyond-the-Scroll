@@ -15,6 +15,7 @@ import { createCandles } from "./candles.js";
 import { createPuppetFigures } from "./puppets.js";
 import { CAST } from "./cast.js";
 import { BOUNDS } from "./layout.js";
+import { CHAPTERS } from "./story.js";
 import { NightMusic } from "./NightMusic.js";
 
 const TEX = `${import.meta.env.BASE_URL}paintings/hanxizai-yeyan/`;
@@ -95,6 +96,7 @@ export async function buildHanxizaiWorld({ canvas, onProgress, onZone }) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const controller = new GuidedTour({
     camera,
+    chapters: CHAPTERS,
     reducedMotion: reducedMotion.matches,
     onChapter: (chapter) => {
       arch.setSection(chapter.id);

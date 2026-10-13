@@ -1,0 +1,364 @@
+/* ========== 卷三《鹿王本生》· 导览与敷彩界面 ==========
+   复用卷二 ScrollGuide 的 night-* 版式（同一套展陈语言），
+   在其上增加矿物颜料盘、敷彩进度与释文面板。 */
+
+.fuwang {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.fuwang > * {
+  pointer-events: auto;
+}
+
+/* ---------- 底部颜料盘 ---------- */
+
+.fuwang__palette {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 12px 20px;
+  border: 1px solid rgb(201 168 106 / 34%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(18 23 24 / 88%), rgb(8 10 11 / 92%)),
+    var(--tex-grain-light);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 55%);
+  color: var(--text);
+  font-family: var(--font-serif);
+}
+
+.fuwang__swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.fuwang__swatch {
+  display: grid;
+  grid-template-columns: 22px auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 1px 8px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, background-color 0.25s;
+}
+
+.fuwang__swatch b {
+  grid-row: 1 / span 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 45%),
+    inset 0 -4px 8px rgb(0 0 0 / 32%),
+    0 0 0 1px rgb(233 223 199 / 18%);
+}
+
+.fuwang__swatch span {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.fuwang__swatch em {
+  font-size: 10px;
+  font-style: normal;
+  opacity: 0.6;
+}
+
+.fuwang__swatch:hover,
+.fuwang__swatch:focus-visible {
+  border-color: rgb(201 168 106 / 45%);
+  color: var(--gold-soft);
+  outline: none;
+}
+
+.fuwang__swatch[data-active] {
+  border-color: var(--gold);
+  background: rgb(201 168 106 / 12%);
+}
+
+.fuwang__swatch[data-active] b {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 45%),
+    inset 0 -4px 8px rgb(0 0 0 / 32%),
+    0 0 0 2px var(--gold);
+}
+
+/* ---------- 进度 ---------- */
+
+.fuwang__meter {
+  display: grid;
+  gap: 5px;
+  min-width: 104px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.fuwang__meter i {
+  display: block;
+  height: 3px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--cinnabar), var(--gold));
+  transition: transform 0.3s ease-out;
+}
+
+/* ---------- 工具 ---------- */
+
+.fuwang__tools {
+  display: flex;
+  gap: 8px;
+}
+
+.fuwang__tools button {
+  padding: 7px 12px;
+  border: 1px solid rgb(201 168 106 / 30%);
+  border-radius: 3px;
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: color 0.25s, border-color 0.25s;
+}
+
+.fuwang__tools button:hover,
+.fuwang__tools button:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+  outline: none;
+}
+
+.fuwang__tools button[aria-pressed='true'] {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+}
+
+.fuwang__tools kbd {
+  margin-left: 4px;
+  padding: 0 4px;
+  border: 1px solid rgb(201 168 106 / 26%);
+  border-radius: 2px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+/* ---------- 提示（停顿或涂错时出现，不常驻） ---------- */
+
+.fuwang__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 108px;
+  transform: translateX(-50%);
+  max-width: 32em;
+  margin: 0;
+  padding: 9px 16px;
+  border-left: 2px solid var(--cinnabar);
+  background: rgb(8 10 11 / 82%);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  animation: fuwang-hint-in 0.45s ease-out both;
+}
+
+@keyframes fuwang-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fuwang__hint {
+    animation: none;
+  }
+}
+
+/* ---------- 释文与依据（弹层内为浅色纸底，须用深色字） ---------- */
+
+/* 深色 HUD 上的默认样式（备用） */
+.fuwang__quote-rule {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.fuwang__quotes {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fuwang__quotes blockquote {
+  margin: 0 0 6px;
+  padding: 10px 0 10px 14px;
+  border-left: 2px solid rgb(201 168 106 / 55%);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1.9;
+  text-indent: 0;
+}
+
+.fuwang__quotes cite {
+  display: block;
+  padding-left: 14px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+}
+
+.fuwang__quotes cite a {
+  color: var(--gold-soft);
+  text-decoration: none;
+  border-bottom: 1px solid rgb(201 168 106 / 40%);
+}
+
+.fuwang__aside {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.fuwang__notice {
+  margin: 20px 0 6px;
+  padding: 14px 16px;
+  border: 1px solid rgb(167 54 43 / 40%);
+  border-radius: 4px;
+  background: rgb(167 54 43 / 8%);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+.fuwang__notice strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cinnabar);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+
+.fuwang__notice p {
+  margin: 0 0 6px;
+}
+
+.fuwang__notice p:last-child {
+  margin-bottom: 0;
+}
+
+/* 弹层为浅色纸底：引文必须用深墨色，否则与底同色而不可见 */
+.night-modal .fuwang__quote-rule,
+.night-modal .fuwang__aside {
+  color: #5c5044;
+}
+
+.night-modal .fuwang__quotes blockquote {
+  border-left-color: rgb(140 96 48 / 62%);
+  background: rgb(255 252 245 / 55%);
+  color: #2c2620;
+}
+
+.night-modal .fuwang__quotes cite {
+  color: #6b5c48;
+}
+
+.night-modal .fuwang__quotes cite a {
+  color: #8a5a2b;
+  border-bottom-color: rgb(138 90 43 / 45%);
+}
+
+.night-modal .fuwang__notice {
+  border-color: rgb(167 54 43 / 45%);
+  background: rgb(167 54 43 / 9%);
+  color: #5c4a42;
+}
+
+.night-modal .fuwang__notice strong {
+  color: #8f2f24;
+}
+
+.fuwang__sourceslink {
+  border: none;
+  background: none;
+  color: var(--gold-soft);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border-bottom: 1px solid rgb(201 168 106 / 40%);
+}
+
+/* 已完成折的导航标记 */
+.night-tour__header nav button[data-done] i {
+  color: var(--gold);
+}
+
+.night-tour__header nav button[data-done]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--cinnabar);
+}
+
+.night-tour__header nav button {
+  position: relative;
+}
+
+/* ---------- 竖屏 ---------- */
+
+@media (max-width: 860px) {
+  .fuwang__palette {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 14px;
+    bottom: 14px;
+    padding: 10px 12px;
+    max-width: calc(100vw - 20px);
+  }
+
+  .fuwang__swatch {
+    grid-template-columns: 18px auto;
+    padding: 5px 8px 5px 6px;
+  }
+
+  .fuwang__swatch b {
+    width: 18px;
+    height: 18px;
+  }
+
+  .fuwang__hint {
+    bottom: 152px;
+    font-size: 12px;
+  }
+}

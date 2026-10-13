@@ -132,7 +132,7 @@ export default function EntryScene({ onEnterWorld }) {
         <span>画里江山千载梦</span>
       </p>
 
-      <section className="entry__stage" ref={stageRef} aria-label="名画卷轴">
+      <section className="entry__stage" ref={stageRef} aria-label="绘画与壁画卷轴">
         {paintings.map((p, i) => (
           <div
             key={p.id}

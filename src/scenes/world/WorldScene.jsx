@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildJiangshanWorld } from './jiangshan/index.js';
 import { buildHanxizaiWorld } from './hanxizai/index.js';
+import { buildFuwangWorld } from './fuwang/index.js';
 import ScrollGuide from './hanxizai/ScrollGuide.jsx';
+import FuwangGuide from './fuwang/FuwangGuide.jsx';
+import './hanxizai/ScrollGuide.css';
 import './WorldScene.css';
+import './fuwang/Fuwang.css';
 
 const JIANGSHAN_KEYS = [
   ['W A S D', '行走'],
@@ -10,6 +14,14 @@ const JIANGSHAN_KEYS = [
   ['空格', '跳跃'],
   ['鼠标', '环顾'],
   ['E', '登船 / 上岸'],
+  ['Esc', '暂停'],
+];
+
+const FUWANG_KEYS = [
+  ['拖拽', '为壁画敷彩'],
+  ['1—4', '择矿物色'],
+  ['[ ] 或 Q E', '换折'],
+  ['F', '切换速成 / 全手作'],
   ['Esc', '暂停'],
 ];
 
@@ -26,7 +38,16 @@ const BUILDERS = {
       ['Esc', '暂停'],
     ],
   },
+  'fuwang-bensheng': {
+    build: buildFuwangWorld,
+    title: '鹿王本生',
+    order: '叁',
+    keys: FUWANG_KEYS,
+  },
 };
+
+/** 采用「原卷门页 + 固定路线」的画作 */
+const GUIDED = new Set(['hanxizai-yeyan', 'fuwang-bensheng']);
 
 /**
  * 画境容器：江山采用自由漫游，夜宴采用原卷门页与固定路线。
@@ -34,7 +55,7 @@ const BUILDERS = {
  */
 export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   const def = BUILDERS[paintingId] ?? BUILDERS['jiangshan-qiuse'];
-  const guided = paintingId === 'hanxizai-yeyan';
+  const guided = GUIDED.has(paintingId);
   const canvasRef = useRef(null);
   const overlayRef = useRef(null);
   const promiseRef = useRef(null);
@@ -45,6 +66,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   const [load, setLoad] = useState({ p: 0, label: '展绢' });
   const [zone, setZone] = useState(null);
   const [prompt, setPrompt] = useState(null);
+  const [paintEvent, setPaintEvent] = useState(null);
 
   useEffect(() => {
     clearTimeout(disposeTimer.current);
@@ -64,6 +86,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         },
         onZone: (z) => setZone({ ...z, key: performance.now() }),
         onPrompt: (text) => setPrompt(text),
+        onEvent: (e) => setPaintEvent({ ...e, key: performance.now() }),
       });
     }
     let active = true;
@@ -124,6 +147,10 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
 
       {paintingId === 'hanxizai-yeyan' && !['loading', 'error'].includes(status) && (
         <ScrollGuide world={worldRef.current} onExit={exit} />
+      )}
+
+      {paintingId === 'fuwang-bensheng' && !['loading', 'error'].includes(status) && (
+        <FuwangGuide world={worldRef.current} onExit={exit} paintEvent={paintEvent} />
       )}
 
       {status === 'loading' && (

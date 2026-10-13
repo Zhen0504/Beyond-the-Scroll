@@ -1,11 +1,15 @@
 import { Vector3 } from "three";
-import { CHAPTERS } from "./story.js";
 
 const ease = (t) => t * t * (3 - 2 * t);
-/** An authored front-side camera rail. Chapter changes always stop at the scroll. */
+/**
+ * An authored front-side camera rail. Chapter changes always stop at the scroll.
+ *
+ * 章节目录由调用方传入（默认取本画作的 CHAPTERS），以便各画作共用同一条导览轨。
+ */
 export class GuidedTour {
-  constructor({ camera, onChapter, reducedMotion = false }) {
+  constructor({ camera, chapters, onChapter, reducedMotion = false }) {
     this.camera = camera;
+    this.chapters = chapters ?? CHAPTERS;
     this.onChapter = onChapter;
     this.reducedMotion = reducedMotion;
     this.listeners = new Set();
@@ -14,7 +18,7 @@ export class GuidedTour {
     this.travel = null;
     this.fade = 1;
     this.applyStop();
-    this.onChapter?.(CHAPTERS[0]);
+    this.onChapter?.(this.chapters[0]);
   }
   getSnapshot = () => this.state;
   subscribe = (fn) => {
@@ -26,7 +30,7 @@ export class GuidedTour {
     this.listeners.forEach((fn) => fn());
   }
   get chapter() {
-    return CHAPTERS[this.state.chapter];
+    return this.chapters[this.state.chapter];
   }
   get stop() {
     return this.chapter.stops[this.state.stop];
@@ -51,7 +55,7 @@ export class GuidedTour {
     this.camera.lookAt(this.target);
   }
   openChapter(id) {
-    const chapter = CHAPTERS.findIndex((c) => c.id === id);
+    const chapter = this.chapters.findIndex((c) => c.id === id);
     if (chapter < 0) return;
     this.travel = null;
     this.fade = 1;
