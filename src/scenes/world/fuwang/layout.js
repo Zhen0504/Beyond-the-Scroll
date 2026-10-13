@@ -94,10 +94,13 @@ export const FOLDS = [
 
 export const ZONES = FOLDS;
 
-/** 颜料（矿物色）。paint 为界面显示色，非壁画拾色结果。 */
+/** 颜料（矿物色）。用于调色盘显示与目标区高亮。 */
 export const PIGMENTS = [
   { id: "shiqing", name: "石青", hex: "#3f6f92", hint: "层" },
   { id: "shilv", name: "石绿", hex: "#6f9c7a", hint: "层" },
   { id: "zhusha", name: "朱砂", hex: "#a8443a", hint: "层" },
   { id: "tuhong", name: "土红", hex: "#8f4a35", hint: "底" },
 ];
+
+/** 颜料盘顺序（与色区映射共用） */
+export const PIGMENT_KEYS = PIGMENTS.map((p) => p.id);

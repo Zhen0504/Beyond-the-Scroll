@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { PIGMENTS } from './layout.js';
+import { FOLD_REGIONS } from './regions.js';
+import { pigmentName } from './restore.js';
 
 /**
  * 卷三导览。
@@ -17,12 +19,12 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const state = useSync(tour);
 
   const [pigment, setPigment] = useState(PIGMENTS[0].id);
-  const [speed, setSpeed] = useState('gentle');
   const [hint, setHint] = useState(null);
   const [hintKind, setHintKind] = useState('guide');   // guide | nudge | done
   const [sources, setSources] = useState(false);
   const [lecture, setLecture] = useState(false);
   const [tick, setTick] = useState(0);                 // 订阅敷彩进度，驱动完成标记
+  const [undoDepth, setUndoDepth] = useState(0);
   const hintTimer = useRef(0);
 
   const chapter = CHAPTERS[state.chapter] ?? CHAPTERS[0];
@@ -31,7 +33,12 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   // 敷彩进度是命令式对象，用订阅把它的变化推给 React
   useEffect(() => {
     if (!restorer) return undefined;
-    const id = setInterval(() => setTick((t) => t + 1), 250);
+    const id = setInterval(() => {
+      setTick((t) => t + 1);
+      setUndoDepth(restorer.undoStack?.length ?? 0);
+    }, 200);
+    // 进入时同步一次目标色区，避免初始不发光
+    restorer.setPigment(restorer.pigment);
     return () => clearInterval(id);
   }, [restorer]);
 
@@ -46,17 +53,27 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     };
     switch (paintEvent.type) {
       case 'off-target':
-        show(paintEvent.message ?? '这一段不是本折的范围 —— 回到高亮处继续。', 'nudge', 6000);
+        show(paintEvent.message ?? '这一处不需要这种颜色 —— 请涂在发光的地方。', 'nudge', 4000);
         break;
       case 'idle-hint':
-        show('顺着残迹，为本折高亮的一段敷彩。', 'guide', 6000);
+        show(
+          paintEvent.targets?.length
+            ? `发光处就是要涂的地方 —— 用${pigmentName(pigment)}涂满它们。`
+            : `本折不用${pigmentName(pigment)}，换一种颜色试试。`,
+          'guide',
+          6500,
+        );
+        break;
+      case 'region-done':
+        show(`${paintEvent.region?.what ?? '这一段'}已足色 —— 继续涂其余发光处。`, 'done', 3200);
         break;
       case 'fold-done':
-        show('这一段已足色 —— 可换下一折。', 'done', 4200);
+        show('本折已足色 —— 可换下一折。', 'done', 4200);
         break;
-      case 'paint-done':
-        // 已完成区段继续落笔：只做一次轻提示，不重复报完成
-        show('这一段已足色，可换下一折。', 'done', 2200);
+      case 'undo':
+        break;
+      case 'undo-empty':
+        show('没有可撤销的笔触了。', 'nudge', 2500);
         break;
       case 'all-done':
         setHint(null);
@@ -65,9 +82,14 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
       default:
         break;
     }
-  }, [paintEvent]);
+  }, [paintEvent, pigment]);
 
   useEffect(() => () => clearTimeout(hintTimer.current), []);
+
+  const doUndo = useCallback(() => {
+    restorer?.undo();
+    setUndoDepth(restorer?.undoStack?.length ?? 0);
+  }, [restorer]);
 
   const selectPigment = useCallback(
     (id) => {
@@ -76,12 +98,6 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     },
     [restorer],
   );
-
-  const toggleSpeed = useCallback(() => {
-    const next = speed === 'gentle' ? 'full' : 'gentle';
-    setSpeed(next);
-    restorer?.setSpeed(next);
-  }, [restorer, speed]);
 
   const goFold = useCallback(
     (id) => {
@@ -94,12 +110,21 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     [tour, restorer],
   );
 
-  const snapshot = restorer?.snapshot?.() ?? { progress: [], done: 0 };
+  const snapshot = restorer?.snapshot?.() ?? { progress: [], done: 0, targets: [] };
   const doneCount = snapshot.progress.filter((p) => p >= 1).length;
   const foldProgress = snapshot.progress[state.chapter] ?? 0;
   const foldDone = foldProgress >= 1;
   const allDone = snapshot.progress.length > 0 && snapshot.progress.every((p) => p >= 1);
   const pct = Math.round(foldProgress * 100);
+
+  const currentPigment = PIGMENTS.find((p) => p.id === pigment) ?? PIGMENTS[0];
+  // 本折用当前颜料的目标色区。直接读 restorer，避免与快照时机不一致。
+  const regionList = FOLD_REGIONS[chapter.id] ?? [];
+  const targets = regionList.filter((r) => r.p === pigment);
+  const regionDone = (r) => {
+    const i = regionList.indexOf(r);
+    return i >= 0 && (restorer?.regionProgressAt?.(state.chapter, i) ?? 0) >= 1;
+  };
   // tick 由订阅定时器驱动：敷彩进度是命令式对象，需要它把变化带进渲染
   void tick;
 
@@ -232,14 +257,37 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
 
             <div className="fuwang__tools">
-              <button onClick={toggleSpeed} aria-pressed={speed === 'full'}>
-                {speed === 'gentle' ? '速成' : '全手作'} <kbd>F</kbd>
+              <button
+                onClick={doUndo}
+                disabled={undoDepth === 0}
+                aria-label={`撤销上一笔，可撤销 ${undoDepth} 步`}
+              >
+                撤销 <kbd>Z</kbd>
+                {undoDepth > 0 && <i className="fuwang__undoCount">{undoDepth}</i>}
               </button>
               <button onClick={() => setLecture(true)}>
                 释文 <kbd>L</kbd>
               </button>
             </div>
           </div>
+
+          {/* 该涂哪里：直接列出本折用当前颜料的目标色区 */}
+          {!foldDone && (
+            <p className="fuwang__targetsline" role="status">
+              {targets.length ? (
+                <>
+                  <b style={{ '--swatch': currentPigment.hex }} />
+                  <span>
+                    用<b>{currentPigment.name}</b>涂发光处：
+                    {targets.map((r) => r.what).join(' · ')}
+                  </span>
+                  <em>还剩 {targets.filter((r) => !regionDone(r)).length} 处</em>
+                </>
+              ) : (
+                <span>本折不用{currentPigment.name} —— 换一种颜色</span>
+              )}
+            </p>
+          )}
           {hint && (
             <p className={`fuwang__hint fuwang__hint--${hintKind}`} role="status">
               {hint}

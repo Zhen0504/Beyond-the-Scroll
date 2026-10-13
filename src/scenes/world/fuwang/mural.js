@@ -7,6 +7,7 @@ import {
   PlaneGeometry,
   Scene,
   ShaderMaterial,
+  Vector2,
   WebGLRenderTarget,
 } from 'three';
 import { ATMOSPHERE_GLSL, NOISE_GLSL } from '../../../engine/shaders/common.glsl.js';
@@ -93,7 +94,8 @@ uniform sampler2D uPaint;      // 敷彩累积：R = 覆盖量, G = 颜料序号
 uniform float uPigmentR;       // 当前颜料 — 以下三项一致
 uniform float uPigmentG;
 uniform float uPigmentB;
-uniform float uHover;          // 当前折区段的高亮
+uniform float uHover;          // 引导强度（常驻为 1）
+uniform float uOnTarget;       // 指针是否正落在目标色区上
 uniform float uHoverU0;        // 当前折区段的 u 范围
 uniform float uHoverU1;
 uniform float uReveal;
@@ -103,6 +105,8 @@ uniform float uFold1;
 uniform float uFold2;
 uniform float uFold3;
 uniform float uFold4;
+// 当前颜料在本折的目标色区（最多 8 段，x=起点、y=终点，空位为 0,0）
+uniform vec2 uTargets[8];
 // uTime 由 ATMOSPHERE_GLSL 声明，此处不得重复
 
 varying vec2 vUv;
@@ -194,14 +198,41 @@ void main() {
   float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
   col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
 
-  /* ---- 四、引导 ---- */
+  /* ---- 四、引导：明确告诉观众「这一段该上这种颜色」 ---- */
 
-  // 当前折区段的柔和呼吸高亮：明确"这一段是本折要敷彩的范围"。
-  // 只在没有敷彩的地方提示，已着色处不再叠加。
   float inFold = step(uHoverU0, uv.x) * step(uv.x, uHoverU1);
   float breath = 0.5 + 0.5 * sin(uTime * 1.1);
-  float hintZone = inFold * (1.0 - smoothstep(0.05, 0.35, amount));
-  col += vec3(0.075, 0.062, 0.040) * hintZone * uHover * breath;
+
+  // 目标色区（当前颜料该涂之处）
+  float target = 0.0;
+  float targetEdge = 0.0;
+  for (int i = 0; i < 8; i++) {
+    float a = uTargets[i].x;
+    float b = uTargets[i].y;
+    if (b > a) {
+      target = max(target, step(a, uv.x) * step(uv.x, b));
+      // 色区两端各留一道描边，便于看清边界
+      float edgeW = 0.0035;
+      float nearA = 1.0 - smoothstep(0.0, edgeW, abs(uv.x - a));
+      float nearB = 1.0 - smoothstep(0.0, edgeW, abs(uv.x - b));
+      targetEdge = max(targetEdge, max(nearA, nearB));
+    }
+  }
+  // 已涂到的地方不再高亮，观众能看到「涂满了没有」
+  float unpainted = 1.0 - smoothstep(0.30, 0.80, paintMask);
+  target *= unpainted;
+  targetEdge *= unpainted;
+
+  // 非目标处压暗，让目标处自然凸显（只在当前折内）
+  float dimZone = inFold * (1.0 - target) * uHover;
+  col *= 1.0 - 0.40 * dimZone;
+
+  // 目标处发出该颜料本身的光 + 呼吸；指针落在目标上时再亮一档
+  vec3 hintColor = normalize(mineral + vec3(0.34));
+  float boost = 1.0 + uOnTarget * 0.5;
+  col += hintColor * target * (0.26 + 0.14 * breath) * uHover * boost;
+  // 色区描边：更亮的一道，帮助看清该涂到哪儿
+  col += hintColor * targetEdge * (0.34 + 0.16 * breath) * uHover * boost;
 
   gl_FragColor = vec4(applyAtmosphere(col, vWorld), 1.0);
 }
@@ -226,6 +257,7 @@ uniform sampler2D uPrev;
 uniform vec2  uBrush;      // 笔尖位置（uv）
 uniform vec2  uPrevBrush;  // 上一位置，用于沿笔迹拉长
 uniform float uRadius;
+uniform float uStretch;    // 笔尖横向拉伸（画幅很宽）
 uniform float uAmount;
 uniform float uIndex;      // 颜料序号（0..1）
 uniform float uSeed;
@@ -234,7 +266,7 @@ varying vec2 vUv;
 
 void main() {
   vec2 d = vUv - uBrush;
-  d.x *= 3.2;              // 画面横向被拉长，笔尖亦随之呈扁形
+  d.x *= uStretch;
 
   float r = length(d) / uRadius;
   // 柔边笔触
@@ -276,8 +308,12 @@ export function createMuralMaterial({ map, atmosphere }) {
       uPigmentG: { value: 0.43 },
       uPigmentB: { value: 0.57 },
       uHover: { value: 0 },
+      uOnTarget: { value: 0 },
       uHoverU0: { value: 0 },
       uHoverU1: { value: 1 },
+      uTargets: {
+        value: Array.from({ length: 8 }, () => new Vector2(0, 0)),
+      },
       uFold0: { value: 0 },
       uFold1: { value: 0 },
       uFold2: { value: 0 },
@@ -321,13 +357,30 @@ export class PaintCanvas {
         uPrev: { value: null },
         uBrush: { value: [0.5, 0.5] },
         uPrevBrush: { value: [0.5, 0.5] },
-        uRadius: { value: 0.03 },
+        uRadius: { value: 0.01 },
+        uStretch: { value: 2.2 },
         uAmount: { value: 0.5 },
         uIndex: { value: 0.0 },
         uSeed: { value: 0.0 },
       },
     });
     this.quadScene.add(new Mesh(new PlaneGeometry(2, 2), this.material));
+
+    // 复制用的最小着色器（撤销快照）
+    this.copyMaterial = new ShaderMaterial({
+      vertexShader: STAMP_VERT,
+      fragmentShader: `
+        uniform sampler2D uSrc;
+        varying vec2 vUv;
+        void main() { gl_FragColor = texture2D(uSrc, vUv); }
+      `,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: { uSrc: { value: null } },
+    });
+    this.copyScene = new Scene();
+    this.copyScene.add(new Mesh(new PlaneGeometry(2, 2), this.copyMaterial));
+
     this.clear();
   }
 
@@ -357,8 +410,9 @@ export class PaintCanvas {
    * @param {{x:number,y:number}} prev 上一笔尖
    * @param {number} index 颜料序号 0..1
    * @param {number} amount 落色强度
+   * @param {{radius?:number, stretch?:number}} opts 笔尖形状
    */
-  stamp(uv, prev, index, amount = 0.42) {
+  stamp(uv, prev, index, amount = 0.42, opts = {}) {
     const src = this.targets[this.flip];
     const dst = this.targets[1 - this.flip];
     const u = this.material.uniforms;
@@ -367,6 +421,8 @@ export class PaintCanvas {
     u.uPrevBrush.value = [prev?.x ?? uv.x, prev?.y ?? uv.y];
     u.uIndex.value = index;
     u.uAmount.value = amount;
+    u.uRadius.value = opts.radius ?? 0.01;
+    u.uStretch.value = opts.stretch ?? 2.2;
     u.uSeed.value = Math.random() * 10;
 
     const previous = this.renderer.getRenderTarget();
@@ -377,9 +433,35 @@ export class PaintCanvas {
   }
 
   /**
-   * 该位置的敷彩量由 Restorer 依笔触轨迹推算，
-   * 这里不从 GPU 回读（避免同步阻塞）。
+   * 取一份当前笔触状态的快照（用于撤销）：把当前 target 复制到另一张。
+   * 返回一个句柄，交给 restore() 即可回到快照时的状态。
    */
+  snapshot() {
+    const src = this.targets[this.flip];
+    const dst = this.targets[1 - this.flip];
+    this.copyTexture(src.texture, dst);
+    return { flip: this.flip };
+  }
+
+  /** 恢复到某次快照（撤销）。可连续撤销多层。 */
+  restore(handle) {
+    if (!handle) return false;
+    // 快照保存在 1 - handle.flip，当前显示的是 flip
+    this.flip = 1 - handle.flip;
+    return true;
+  }
+
+  /** 把一张贴图原样拷到目标渲染目标 */
+  copyTexture(texture, target) {
+    const u = this.copyMaterial.uniforms;
+    u.uSrc.value = texture;
+    const previous = this.renderer.getRenderTarget();
+    this.renderer.setRenderTarget(target);
+    this.renderer.render(this.copyScene, this.quadCam);
+    this.renderer.setRenderTarget(previous);
+  }
+
+  /** 当前已涂的覆盖率由 Restorer 依色区判定，此处不做 GPU 回读 */
   dispose() {
     this.targets.forEach((t) => t.dispose());
     this.material.dispose();

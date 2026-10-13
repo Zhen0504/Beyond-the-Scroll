@@ -5,5 +5,6 @@ dist/
 __pycache__/
 *.pyc
 tools/_cdp*/
-tools/_upstream_pristine/
+tools/_upstream*/
 tools/shots3/
+tools/*_diff.txt
