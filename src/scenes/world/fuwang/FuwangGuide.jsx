@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { PIGMENTS } from './layout.js';
-import { MASK_SLOTS, foldShapes } from './shapes.js';
-import { pigmentName } from './restore.js';
+import { MASK_SLOTS } from './shapes.js';
 
 /**
  * 卷三导览。
@@ -18,102 +17,43 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const restorer = world?.restorer;
   const state = useSync(tour);
 
-  const [pigment, setPigment] = useState(PIGMENTS[0].id);
-  const [hint, setHint] = useState(null);
-  const [hintKind, setHintKind] = useState('guide');   // guide | nudge | done
   const [sources, setSources] = useState(false);
   const [lecture, setLecture] = useState(false);
-  const [tick, setTick] = useState(0);                 // 订阅敷彩进度，驱动完成标记
-  const [undoDepth, setUndoDepth] = useState(0);
-  const hintTimer = useRef(0);
+  const [tick, setTick] = useState(0);   // 订阅敷彩状态，把命令式变化带进渲染
+  // 最近点过的颜色，仅用于色块的高亮提示；四种色各自独立，互不影响
+  const [pigment, setPigment] = useState(PIGMENTS[0].id);
 
   const chapter = CHAPTERS[state.chapter] ?? CHAPTERS[0];
   const plate = ['plate', 'entering'].includes(state.phase);
 
-  // 敷彩进度是命令式对象，用订阅把它的变化推给 React
+  // 敷彩状态是命令式对象（restorer.filled），用定时器把变化推给 React
   useEffect(() => {
     if (!restorer) return undefined;
-    const id = setInterval(() => {
-      setTick((t) => t + 1);
-      setUndoDepth(restorer.undoStack?.length ?? 0);
-    }, 200);
-    // 进入时同步一次目标色区，避免初始不发光
-    restorer.setPigment(restorer.pigment);
+    const id = setInterval(() => setTick((t) => t + 1), 180);
     return () => clearInterval(id);
   }, [restorer]);
 
-  // 敷彩事件 → 提示与解锁
+  // 敷彩事件：只在「全部敷完」时打开释文，其余不打扰
   useEffect(() => {
     if (!paintEvent) return;
-    const show = (text, kind, ms) => {
-      setHint(text);
-      setHintKind(kind);
-      clearTimeout(hintTimer.current);
-      hintTimer.current = setTimeout(() => setHint(null), ms);
-    };
-    switch (paintEvent.type) {
-      case 'shape-done':
-        show(`${paintEvent.shape?.what ?? '这一处'}已敷彩。`, 'done', 2600);
-        break;
-      case 'fold-done':
-        show('本折已足色 —— 可换下一折。', 'done', 4200);
-        break;
-      case 'already':
-        show(`${paintEvent.shape?.what ?? '这一处'}已经敷过彩了。`, 'guide', 2400);
-        break;
-      case 'wrong-pigment':
-        show(
-          `这一处该用${pigmentName(paintEvent.want)} —— 换一种颜色再点。`,
-          'nudge',
-          3200,
-        );
-        break;
-      case 'idle-hint':
-        show(
-          paintEvent.targets?.length
-            ? `点亮的地方就是要敷彩的形体 —— 用${pigmentName(pigment)}点它们。`
-            : `本折不用${pigmentName(pigment)} —— 换一种颜色试试。`,
-          'guide',
-          6500,
-        );
-        break;
-      case 'undo-empty':
-        show('没有可撤销的敷彩了。', 'nudge', 2400);
-        break;
-      case 'all-done':
-        setHint(null);
-        setLecture(true);
-        break;
-      default:
-        break;
-    }
-  }, [paintEvent, pigment]);
+    if (paintEvent.type === 'all-done') setLecture(true);
+  }, [paintEvent]);
 
-  useEffect(() => () => clearTimeout(hintTimer.current), []);
-
-  const doUndo = useCallback(() => {
-    restorer?.undo();
-    setUndoDepth(restorer?.undoStack?.length ?? 0);
-  }, [restorer]);
-
-  // 敷彩状态是命令式对象（restorer.filled），用定时器把变化带进渲染
-  useEffect(() => {
-    if (!restorer) return undefined;
-    const id = setInterval(() => {
-      setTick((t) => t + 1);
-      setUndoDepth(restorer.undoStack?.length ?? 0);
-    }, 200);
-    restorer.setPigment(restorer.pigment);
-    return () => clearInterval(id);
-  }, [restorer]);
-
-  const selectPigment = useCallback(
+  /**
+   * 点颜色 = 开关：未敷则整体敷上，已敷则整体还原。
+   * 界面上的「当前色」只用于视觉高亮，不影响其它颜色 —— 四种色各自独立。
+   */
+  const togglePigment = useCallback(
     (id) => {
       setPigment(id);
-      restorer?.setPigment(id);
+      restorer?.togglePigment(id);
     },
     [restorer],
   );
+
+  const resetFold = useCallback(() => {
+    restorer?.resetFold();
+  }, [restorer]);
 
   const goFold = useCallback(
     (id) => {
@@ -126,29 +66,17 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     [tour, restorer],
   );
 
-  const snapshot = restorer?.snapshot?.() ?? { progress: [], done: 0, targets: [] };
+  const snapshot = restorer?.snapshot?.() ?? { progress: [], done: 0 };
   const doneCount = snapshot.progress.filter((p) => p >= 1).length;
   const foldProgress = snapshot.progress[state.chapter] ?? 0;
   const foldDone = foldProgress >= 1;
   const allDone = snapshot.progress.length > 0 && snapshot.progress.every((p) => p >= 1);
-  // 敷彩初期进度很小，按整数取整会一直显示 0%，让人以为没反应
-  const pct = foldProgress <= 0 ? 0 : foldProgress < 0.01 ? '<1' : Math.round(foldProgress * 100);
-
-  const currentPigment = PIGMENTS.find((p) => p.id === pigment) ?? PIGMENTS[0];
-  // 本折的形体清单（由壁画裁出的蒙版定义）
-  const shapeList = foldShapes(chapter.id);
-  const targets = shapeList.filter((s) => s.p === pigment);
-  const pendingTargets = targets.filter((s) => !restorer?.isFilled?.(s.id));
-  const shapeDone = (s) => !!restorer?.isFilled?.(s.id);
-
-  // 当前颜色在本折敷完后，推荐下一个还有余处的颜色
-  const nextColor = PIGMENTS
-    .map((p) => ({
-      ...p,
-      left: shapeList.filter((s) => s.p === p.id && !shapeDone(s)).length,
-    }))
-    .find((p) => p.id !== pigment && p.left > 0);
-  // tick 由订阅定时器驱动：敷彩进度是命令式对象，需要它把变化带进渲染
+  const pct = Math.round(foldProgress * 100);
+  const onCount = PIGMENTS.filter((p) => restorer?.isOn?.(p.id)).length;
+  const colorTotal = PIGMENTS.filter(
+    (p) => (restorer?.shapesOf?.(p.id) ?? []).length > 0,
+  ).length;
+  // tick 由订阅定时器驱动：敷彩状态是命令式对象，需要它把变化带进渲染
   void tick;
 
   const sourcesList = useMemo(() => {
@@ -244,26 +172,29 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
           <div className="fuwang__palette" role="toolbar" aria-label="矿物颜料">
             <div className="fuwang__swatches">
               {PIGMENTS.map((p, i) => {
-                // 该颜料在本折还剩几处未敷彩 —— 据此提示观众切换颜色
-                const left = shapeList.filter(
-                  (s) => s.p === p.id && !shapeDone(s),
-                ).length;
-                const total = shapeList.filter((s) => s.p === p.id).length;
+                // 注意括号：restorer 可能尚未就绪，可选链要护住整条链，
+                // 否则 `.length` 会对 undefined 取值并抛错，整个面板都渲染不出来
+                const total = (restorer?.shapesOf?.(p.id) ?? []).length;
+                const on = total > 0 && (restorer?.isOn?.(p.id) ?? false);
                 return (
                   <button
                     key={p.id}
                     className="fuwang__swatch"
                     data-active={p.id === pigment || undefined}
                     data-empty={total === 0 || undefined}
-                    data-clear={total > 0 && left === 0 ? true : undefined}
+                    data-clear={on || undefined}
                     style={{ '--swatch': p.hex }}
-                    onClick={() => selectPigment(p.id)}
-                    aria-pressed={p.id === pigment}
-                    aria-label={`${i + 1} ${p.name}${total ? `，本折还剩 ${left} 处` : '，本折不用'}`}
+                    onClick={() => togglePigment(p.id)}
+                    aria-pressed={on}
+                    aria-label={
+                      total === 0
+                        ? `${i + 1} ${p.name}，本折不用`
+                        : `${i + 1} ${p.name}，${on ? '已敷上，再点还原' : '点一下敷上'}`
+                    }
                   >
                     <b />
                     <span>{p.name}</span>
-                    <em>{total === 0 ? '不用' : left === 0 ? '已足' : `剩 ${left}`}</em>
+                    <em>{total === 0 ? '不用' : on ? '已敷' : '点敷'}</em>
                   </button>
                 );
               })}
@@ -272,15 +203,10 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             <div
               className="fuwang__meter"
               data-done={foldDone || undefined}
-              aria-label={
-                foldDone
-                  ? `本折已足色，全画完成 ${doneCount} / ${CHAPTERS.length}`
-                  : `本折进度 ${pct}%，全画完成 ${doneCount} / ${CHAPTERS.length}`
-              }
+              aria-label={`本折已敷 ${onCount} / ${colorTotal} 色，全画完成 ${doneCount} / ${CHAPTERS.length}`}
             >
-              <span>{foldDone ? '本折 已足色' : `本折 ${pct}%`}</span>
-              <i style={{ transform: `scaleX(${foldDone ? 1 : (snapshot.progress[state.chapter] ?? 0)})` }} />
-              {/* 完成标记：常驻显示，不随提示消失 */}
+              <span>{foldDone ? '本折 已足色' : `已敷 ${onCount}/${colorTotal} 色`}</span>
+              <i style={{ transform: `scaleX(${foldDone ? 1 : foldProgress})` }} />
               {foldDone && (
                 <b className="fuwang__done" aria-hidden="true">
                   已足色
@@ -290,12 +216,11 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 
             <div className="fuwang__tools">
               <button
-                onClick={doUndo}
-                disabled={undoDepth === 0}
-                aria-label={`撤销上一处敷彩，可撤销 ${undoDepth} 步`}
+                onClick={resetFold}
+                disabled={onCount === 0}
+                aria-label="还原本折，撤掉已敷的颜色"
               >
-                撤销 <kbd>Z</kbd>
-                {undoDepth > 0 && <i className="fuwang__undoCount">{undoDepth}</i>}
+                还原 <kbd>R</kbd>
               </button>
               <button onClick={() => setLecture(true)}>
                 释文 <kbd>L</kbd>
@@ -303,33 +228,21 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
           </div>
 
-          {/* 该敷哪里：列出本折用当前颜料、尚未敷彩的形体 */}
-          {!foldDone && (
-            <p className="fuwang__targetsline" role="status">
-              {pendingTargets.length ? (
-                <>
-                  <b style={{ '--swatch': currentPigment.hex }} />
-                  <span>
-                    点亮处是<b>{currentPigment.name}</b>要敷的地方，点它们：
-                    {pendingTargets.map((s) => s.what).join(' · ')}
-                  </span>
-                  <em>还剩 {pendingTargets.length} 处</em>
-                </>
-              ) : targets.length ? (
-                <span>
-                  {currentPigment.name}在本折已敷完 —— 换一种颜色
-                  {nextColor ? `（试试${nextColor.name}，还有 ${nextColor.left} 处）` : ''}
-                </span>
-              ) : (
-                <span>本折不用{currentPigment.name} —— 换一种颜色</span>
-              )}
-            </p>
-          )}
-          {hint && (
-            <p className={`fuwang__hint fuwang__hint--${hintKind}`} role="status">
-              {hint}
-            </p>
-          )}
+          {/* 一句话玩法提示（不指向画面任何位置） */}
+          <p className="fuwang__targetsline" role="status">
+            {colorTotal === 0 ? (
+              <span>本折无需敷彩</span>
+            ) : (
+              <span>
+                点颜色即为本折敷上该色，再点还原 ——
+                {onCount === 0
+                  ? `本折可用 ${colorTotal} 色`
+                  : onCount >= colorTotal
+                    ? '本折已足色'
+                    : `还可试其余 ${colorTotal - onCount} 色`}
+              </span>
+            )}
+          </p>
 
           {/* 五折全部完成：给一个明确、常驻的收束提示 */}
           {allDone && (

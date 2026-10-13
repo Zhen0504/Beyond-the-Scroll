@@ -19,40 +19,40 @@ const JIANGSHAN_KEYS = [
 ];
 
 const FUWANG_KEYS = [
-  ['1—4', '择矿物色'],
-  ['点击', '为发亮的形体敷彩'],
-  ['[ ]', '换折'],
-  ['Z', '撤销'],
-  ['L', '读释文'],
-  ['Esc', '暂停'],
+  ['1��4', 'Ϊ��ɫ������ / �ٰ���ԭ'],
+  ['���ɫ��', 'ͬ��'],
+  ['[ ] �� Q E', '����'],
+  ['R', '��ԭ����'],
+  ['L', '������'],
+  ['Esc', '��ͣ'],
 ];
 
 const BUILDERS = {
-  'jiangshan-qiuse': { build: buildJiangshanWorld, title: '江山秋色图', order: '壹', keys: JIANGSHAN_KEYS },
+  'jiangshan-qiuse': { build: buildJiangshanWorld, title: '江山秋色�?, order: '�?, keys: JIANGSHAN_KEYS },
   'hanxizai-yeyan': {
     build: buildHanxizaiWorld,
     title: '韩熙载夜宴图',
-    order: '贰',
+    order: '�?,
     keys: [
-      ['↑ ↓ / W S', '沿席前行 / 回看'],
-      ['点击', '停步观画 / 再听一句'],
-      ['1—5 / R', '换折 / 原卷对照'],
+      ['�?�?/ W S', '沿席前行 / 回看'],
+      ['点击', '停步观画 / 再听一�?],
+      ['1�? / R', '换折 / 原卷对照'],
       ['Esc', '暂停'],
     ],
   },
   'fuwang-bensheng': {
     build: buildFuwangWorld,
     title: '鹿王本生',
-    order: '叁',
+    order: '�?,
     keys: FUWANG_KEYS,
   },
 };
 
-/** 采用「原卷门页 + 固定路线」的画作 */
+/** 采用「原卷门�?+ 固定路线」的画作 */
 const GUIDED = new Set(['hanxizai-yeyan', 'fuwang-bensheng']);
 
 /**
- * 画境容器：江山采用自由漫游，夜宴采用原卷门页与固定路线。
+ * 画境容器：江山采用自由漫游，夜宴采用原卷门页与固定路线�?
  * status: loading | ready | playing | paused | error
  */
 export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
@@ -72,7 +72,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
 
   useEffect(() => {
     clearTimeout(disposeTimer.current);
-    // StrictMode 会模拟一次卸载重挂；同一个画境只构建一次
+    // StrictMode 会模拟一次卸载重挂；同一个画境只构建一�?
     if (!promiseRef.current) {
       promiseRef.current = def.build({
         canvas: canvasRef.current,
@@ -164,14 +164,14 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
           <div className="world__load-bar">
             <i style={{ transform: `scaleX(${load.p})` }} />
           </div>
-          <p className="world__load-label">{load.label}…</p>
+          <p className="world__load-label">{load.label}�?/p>
         </div>
       )}
 
       {!guided && (status === 'ready' || status === 'paused') && (
         <div className="world__overlay">
           <div className="world__card">
-            <p className="world__card-eyebrow">{status === 'ready' ? `画境 · ${def.order ?? '壹'}` : '暂停'}</p>
+            <p className="world__card-eyebrow">{status === 'ready' ? `画境 · ${def.order ?? '�?}` : '暂停'}</p>
             <h2 className="world__card-title">{status === 'ready' ? '人在画中' : def.title}</h2>
             <ul className="world__keys">
               {(def.keys ?? JIANGSHAN_KEYS).map(([k, label]) => (
@@ -195,7 +195,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         <div className="world__overlay">
           <div className="world__card">
             <h2 className="world__card-title">画境未能展开</h2>
-            <p className="world__card-text">当前浏览器可能不支持 WebGL2，请更换浏览器或开启硬件加速后重试。</p>
+            <p className="world__card-text">当前浏览器可能不支持 WebGL2，请更换浏览器或开启硬件加速后重试�?/p>
             <div className="world__actions">
               <button type="button" className="ink-btn" onClick={onExit}>归卷</button>
             </div>

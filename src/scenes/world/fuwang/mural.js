@@ -214,57 +214,30 @@ void main() {
   float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
   col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
 
-  /* ---- 四、引导：把「这一处该上这种颜色」的形体轮廓点亮 ---- */
+  /* ---- 四、壁画本身不再做任何提示 ----
+   *
+   * 曾用「形体轮廓发光 + 四周压暗」指出该敷哪里，现已移除。
+   * 原因：壁画破损严重、颜色混杂，本就没有可靠依据指定「此处必须是某色」；
+   * 轮廓越精确，越是在编造一个并不存在的原状。这也与我们的声明一致 ——
+   * 重彩是艺术转译，不是复原。
+   * 现在改为「点颜色 → 该色整体敷上 → 再点还原」，成色完全由笔触贴图决定。
+   */
 
-  float inFold = step(uHoverU0, uv.x) * step(uv.x, uHoverU1);
-  float breath = 0.5 + 0.5 * sin(uTime * 1.1);
-
-  // 逐个形体取蒙版：得到的是该形体的**真实轮廓**，不是矩形
-  float target = 0.0;
-  float rim = 0.0;
-  for (int i = 0; i < 8; i++) {
-    if (uShapeDone[i] > 0.5) continue;              // 已敷彩的不再高亮
-    vec4 b = uShapeBounds[i];
-    if (b.z <= 0.0 || b.w <= 0.0) continue;
-    // 落到该形体包围盒内才取蒙版（省采样，也避免串槽）
-    vec2 local = (uv - b.xy) / b.zw;
-    if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) continue;
-    // 槽位按网格排布，槽内又留了黑边：映射到该槽的数据区
-    float col = mod(uShapeSlot[i], uMaskCols);
-    float row = floor(uShapeSlot[i] / uMaskCols);
-    vec2 cell = vec2(col, row) * uMaskGrid;
-    vec2 c = uMaskPad + local * uMaskData;
-    vec2 muv = cell + c * uMaskGrid;
-    float m = texture2D(uMasks, muv).r;
-
-    // 平涂色域（地色、殿壁）本身没有轮廓，若沿矩形硬切会看出一个梯形。
-    // 把边缘柔化，并用噪声打散，使它像一片自然的色域而不是几何块。
-    if (uShapeSoft[i] > 0.5) {
-      vec2 e = min(local, 1.0 - local);
-      float edge = min(e.x, e.y);
-      float wob = fuwangFbm(uv * vec2(26.0, 9.0) + 3.0, 3) - 0.5;
-      m *= smoothstep(0.0, 0.14 + wob * 0.07, edge);
+  // 调试通道保留：需要时可直接查看某个形体的蒙版（正常使用不开启）
+  if (uDebugMask > 0.5) {
+    float dbg = 0.0;
+    for (int i = 0; i < 8; i++) {
+      vec4 b = uShapeBounds[i];
+      if (b.z <= 0.0 || b.w <= 0.0) continue;
+      vec2 lc = (uv - b.xy) / b.zw;
+      if (lc.x < 0.0 || lc.x > 1.0 || lc.y < 0.0 || lc.y > 1.0) continue;
+      vec2 cell = vec2(mod(uShapeSlot[i], uMaskCols), floor(uShapeSlot[i] / uMaskCols)) * uMaskGrid;
+      vec2 c = uMaskPad + lc * uMaskData;
+      dbg = max(dbg, texture2D(uMasks, cell + c * uMaskGrid).r);
     }
-
-    target = max(target, m);
-    // 轮廓描边：只取蒙版边缘很窄的一圈，勾出形体形状
-    rim = max(rim, smoothstep(0.34, 0.60, m) * (1.0 - smoothstep(0.68, 0.90, m)));
+    gl_FragColor = vec4(vec3(dbg), 1.0);
+    return;
   }
-  target = smoothstep(0.25, 0.75, target);
-  rim = smoothstep(0.15, 0.85, rim) * (1.0 - target * 0.55);
-
-  // 非目标处压暗，让目标轮廓自然凸显（只在当前折内）。
-  // 靠「压暗周围」比「提亮目标」更有效 —— 壁画里的白鹿本身已接近饱和，
-  // 再加光看不出变化；把周围压下去、目标处罩上该颜料的色，对比就出来了。
-  float dimZone = inFold * (1.0 - target) * uHover;
-  col *= 1.0 - 0.70 * dimZone;
-
-  // 目标处：蒙上一层该颜料的颜色，明确「这一块要用这个色」
-  vec3 hintColor = normalize(mineral + vec3(0.16));
-  float wash = (0.42 + 0.10 * breath) * uHover * (1.0 + uOnTarget * 0.28);
-  col = mix(col, mix(col, hintColor, 0.55) * 1.06, target * wash);
-  // 沿轮廓加一道更亮的边，形体形状因此一目了然
-  col += hintColor * rim * (0.50 + 0.20 * breath) * uHover;
 
   gl_FragColor = vec4(applyAtmosphere(col, vWorld), 1.0);
 }

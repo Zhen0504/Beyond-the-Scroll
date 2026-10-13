@@ -2,27 +2,27 @@ import { Raycaster, Vector2, Vector3 } from 'three';
 import { MURAL, PIGMENTS } from './layout.js';
 import { pigmentIndex } from './mural.js';
 import { MASK_SLOT_W, SHAPES, foldShapes } from './shapes.js';
+
 /**
- * 「重彩」敷彩交互 —— 认形敷彩。
+ * 「重彩」敷彩交互 —— 按色开关。
  *
- * 玩法（依使用反馈定稿）：
- *   1. 选一种矿物色 → 画面上该上这种颜色的**形体轮廓**发亮
- *      （鹿身就是鹿身的形状，不是矩形框）；
- *   2. **点一下**那个轮廓 → 整个形体自动敷上该色，并显出重彩后的样子；
- *   3. 点错了可以撤销。
+ * 玩法：
+ *   点一下某种矿物色 → 本折中该上这种颜色的地方**一次全部敷上**；
+ *   再点同一种颜色 → 还原（撤掉这一色）。
+ *   壁画此前不做任何提示 —— 点之前看到的就是重彩前的样子。
  *
- * 形体蒙版由 tools/build_shapes.py 从壁画裁出（见 shapes.js 与 masks.png）。
- * 本机制是艺术转译，不是壁画绘制工序或文物修复工艺的复原。
+ * 为什么不做轮廓提示：
+ *   壁画破损严重、颜色混杂，本就没有可靠依据指定「此处必须是某色」；
+ *   提示越精确，越是在编造一个并不存在的原状。按色整体开关则是明确的
+ *   艺术转译 —— 本机制不是壁画绘制工序或文物修复工艺的复原，也与
+ *   「非敦煌研究院官方解读」的声明一致。
+ *
+ * 形体蒙版由 tools/build_shapes.py 从壁画裁出（见 shapes.js 与 masks.png）；
+ * 它现在只用于「某种颜色该覆盖画面哪些区域」，不再对外提示。
  */
 
-const IDLE_HINT_MS = 9000;
-const UNDO_LIMIT = 12;
-/** 同时参与高亮的形体上限，与着色器 uShapeBounds 数组长度一致 */
+/** 同时参与渲染的形体上限，与着色器 uShapeBounds 数组长度一致 */
 export const MAX_ACTIVE_SHAPES = 8;
-
-export const BRUSH_MIN = 0.0012;
-export const BRUSH_MAX = 0.0080;
-export const DEFAULT_BRUSH = 0.0030;
 
 export class Restorer {
   constructor({ renderer, camera, muralMesh, paintCanvas, folds, palette, onEvent }) {
@@ -38,21 +38,12 @@ export class Restorer {
     this.hit = new Vector3();
 
     this.palette = palette;
-    this.pigment = palette[0]?.id ?? null;
-    this.brush = DEFAULT_BRUSH;
-
-    /** 每个形体是否已敷彩 */
-    this.filled = new Set();
     this.index = 0;
-    this.onTarget = 0;
-    this.lastHint = performance.now();
 
-    this.undoStack = [];
+    /** 已敷上的形体 id */
+    this.filled = new Set();
 
     this.bound = {
-      down: (e) => this.onDown(e),
-      move: (e) => this.onMove(e),
-      up: () => this.onUp(),
       key: (e) => this.onKey(e),
     };
   }
@@ -66,12 +57,25 @@ export class Restorer {
     return foldShapes(this.fold.id);
   }
 
-  /** 当前颜料在本折的形体 */
-  get targets() {
-    return this.shapes.filter((s) => s.p === this.pigment);
+  /** 本折中属于某颜料的形体 */
+  shapesOf(pigmentId) {
+    return this.shapes.filter((s) => s.p === pigmentId);
   }
 
-  /** 本折完成度 = 已敷彩形体数 / 总形体数 */
+  /** 某颜料在本折是否已全部敷上 */
+  isOn(pigmentId) {
+    const list = this.shapesOf(pigmentId);
+    return list.length > 0 && list.every((s) => this.filled.has(s.id));
+  }
+
+  /** 某颜料在本折是否有一部分敷上（不该出现，仅作诊断） */
+  isPartial(pigmentId) {
+    const list = this.shapesOf(pigmentId);
+    const n = list.filter((s) => this.filled.has(s.id)).length;
+    return n > 0 && n < list.length;
+  }
+
+  /** 本折完成度 = 已敷上的形体数 / 总形体数 */
   get progress() {
     return this.folds.map((f) => {
       const list = foldShapes(f.id);
@@ -91,125 +95,88 @@ export class Restorer {
     return p.length > 0 && p.every((v) => v >= 1);
   }
 
-  /** 该形体是否已敷彩 */
-  isFilled(id) {
-    return this.filled.has(id);
+  /** 本折已经敷上的颜色种数 */
+  get colorsOn() {
+    return PIGMENTS.filter((p) => this.isOn(p.id)).length;
+  }
+
+  /** 本折用到的颜色种数 */
+  get colorsTotal() {
+    return PIGMENTS.filter((p) => this.shapesOf(p.id).length > 0).length;
   }
 
   attach(el) {
-    el.addEventListener('pointerdown', this.bound.down);
-    window.addEventListener('pointermove', this.bound.move);
-    window.addEventListener('pointerup', this.bound.up);
     window.addEventListener('keydown', this.bound.key);
+    this.target = el;
   }
 
   detach(el) {
-    el.removeEventListener('pointerdown', this.bound.down);
-    window.removeEventListener('pointermove', this.bound.move);
-    window.removeEventListener('pointerup', this.bound.up);
     window.removeEventListener('keydown', this.bound.key);
+    this.target = null;
   }
 
   setFold(i) {
     this.index = Math.max(0, Math.min(this.folds.length - 1, i));
-    this.lastHint = performance.now();
     this.sync();
     this.onEvent({ type: 'fold', index: this.index, fold: this.fold });
+    return this.index;
   }
-
-  setPigment(id) {
-    if (!this.palette.some((p) => p.id === id)) return;
-    this.pigment = id;
-    this.sync();
-    this.onEvent({
-      type: 'pigment',
-      id,
-      targets: this.targets,
-      count: this.targets.length,
-    });
-  }
-
-  /** 笔刷仅用于笔迹观感；尺寸仍可调 */
-  setBrush(size) {
-    const v = Math.max(BRUSH_MIN, Math.min(BRUSH_MAX, Number(size) || DEFAULT_BRUSH));
-    this.brush = v;
-    this.sync();
-    this.onEvent({ type: 'brush', size: v });
-    return v;
-  }
-
-  // ---- 敷彩 ----
 
   /**
-   * 落笔：命中某个**当前颜料尚未敷彩**的形体 → 该形体整体敷色。
-   *
-   * 只认当前颜料：这样观众必须按画中该处原本的用色来敷，
-   * 四种颜色才各有其用，而不是随便点。
+   * 切换一种颜色：未敷则整体敷上，已敷则整体还原。
+   * @returns {'on'|'off'|'empty'} 结果
    */
-  paintAt(e) {
-    const hit = this.pickFrom(e);
-    if (!hit) return false;
-    const shape = this.shapeAt(hit.uv.x, hit.uv.y);
-    if (!shape) return false;
-
-    if (this.filled.has(shape.id)) {
-      this.onEvent({ type: 'already', shape, message: `${shape.what}已敷彩。` });
-      return false;
-    }
-    if (shape.p !== this.pigment) {
+  togglePigment(pigmentId) {
+    if (!this.palette.some((p) => p.id === pigmentId)) return 'empty';
+    const list = this.shapesOf(pigmentId);
+    if (!list.length) {
       this.onEvent({
-        type: 'wrong-pigment',
-        shape,
-        want: shape.p,
-        message: `${shape.what}该用${pigmentName(shape.p)} —— 换一种颜色。`,
+        type: 'no-such-color',
+        pigment: pigmentId,
+        message: `本折不用${pigmentName(pigmentId)}。`,
       });
-      return false;
+      return 'empty';
     }
-    this.fillShape(shape);
+
+    const on = this.isOn(pigmentId);
+    for (const s of list) {
+      if (on) this.filled.delete(s.id);
+      else this.filled.add(s.id);
+    }
+    this.repaint();
+    this.sync();
+
+    this.onEvent({
+      type: on ? 'color-off' : 'color-on',
+      pigment: pigmentId,
+      names: list.map((s) => s.what),
+      fold: this.fold,
+      progress: this.progress[this.index],
+    });
+    if (!on && this.allDone) this.onEvent({ type: 'all-done' });
+    return on ? 'off' : 'on';
+  }
+
+  /** 只敷上（不切换），供键盘与外部调用 */
+  turnOn(pigmentId) {
+    if (this.isOn(pigmentId)) return false;
+    return this.togglePigment(pigmentId) === 'on';
+  }
+
+  /** 全部还原 */
+  resetFold() {
+    const list = this.shapes;
+    if (!list.some((s) => this.filled.has(s.id))) return false;
+    for (const s of list) this.filled.delete(s.id);
+    this.repaint();
+    this.sync();
+    this.onEvent({ type: 'fold-reset', fold: this.fold });
     return true;
   }
 
-  /** 按包围盒找出指针所在的形体 */
-  shapeAt(u, v) {
-    for (const s of this.shapes) {
-      const [u0, v0, u1, v1] = s.box;
-      if (u >= u0 && u <= u1 && v >= v0 && v <= v1) return s;
-    }
-    return null;
-  }
-
   /**
-   * 把一个形体整体敷上它对应的矿物色。
-   * 蒙版决定的**轮廓**由着色器负责，这里只记「已敷彩」并重绘。
-   */
-  fillShape(shape) {
-    const before = this.progress[this.index];
-    this.undoStack.push({ id: shape.id, fold: this.index });
-    if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
-
-    this.filled.add(shape.id);
-    this.repaint();
-
-    this.onTarget = 1;
-    this.sync();
-
-    const after = this.progress[this.index];
-    const allHere = this.shapes.every((s) => this.filled.has(s.id));
-    this.onEvent({
-      type: allHere ? 'fold-done' : 'shape-done',
-      shape,
-      fold: this.fold,
-      progress: after,
-      before,
-    });
-    if (allHere && this.allDone) this.onEvent({ type: 'all-done' });
-  }
-
-  /**
-   * 从「已敷彩形体集合」重建整张累积贴图。
-   *
-   * 敷彩是整块生效的，所以状态完全可以由集合重算 ——
-   * 撤销因此变得可靠（不必维护像素历史）。
+   * 从「已敷上的形体集合」重建整张累积贴图。
+   * 敷彩是整块生效的，所以状态完全可以由集合重算 —— 不需要撤销栈。
    */
   repaint() {
     if (!this.paint?.clear) return;
@@ -222,48 +189,7 @@ export class Restorer {
     }
   }
 
-  undo() {
-    const rec = this.undoStack.pop();
-    if (!rec) {
-      this.onEvent({ type: 'undo-empty' });
-      return false;
-    }
-    this.filled.delete(rec.id);
-    this.repaint();
-    this.sync();
-    this.onEvent({ type: 'undo', remaining: this.undoStack.length });
-    return true;
-  }
-
-  // ---- 指针 ----
-
-  onDown(e) {
-    this.beginStroke();
-    const did = this.paintAt(e);
-    if (!did) this.undoStack.pop();   // 没敷上就不留撤销记录
-  }
-
-  onUp() {}
-
-  onMove(e) {
-    const hit = this.pickFrom(e);
-    if (!hit) {
-      if (this.onTarget !== 0) {
-        this.onTarget = 0;
-        this.sync();
-      }
-      return;
-    }
-    const s = this.shapeAt(hit.uv.x, hit.uv.y);
-    const want = s && !this.filled.has(s.id) && s.p === this.pigment ? 1 : 0;
-    if (want !== this.onTarget) {
-      this.onTarget = want;
-      this.sync();
-    }
-  }
-
-  beginStroke() { /* 撤销记录在 fillShape 里入栈 */ }
-
+  /** 命中测试（保留，便于将来做局部交互） */
   pickFrom(e) {
     const el = this.renderer?.domElement;
     if (!el) return null;
@@ -278,21 +204,13 @@ export class Restorer {
   }
 
   onKey(e) {
-    const n = this.palette.length;
-    if (e.key >= '1' && e.key <= String(Math.min(9, n))) {
-      this.setPigment(this.palette[Number(e.key) - 1].id);
+    const n = Math.min(9, this.palette.length);
+    if (e.key >= '1' && e.key <= String(n)) {
+      this.togglePigment(this.palette[Number(e.key) - 1].id);
       e.preventDefault();
       return;
     }
     switch (e.key) {
-      case '[':
-        this.setBrush(this.brush - 0.0006);
-        e.preventDefault();
-        break;
-      case ']':
-        this.setBrush(this.brush + 0.0006);
-        e.preventDefault();
-        break;
       case 'q':
         this.setFold(this.index - 1);
         e.preventDefault();
@@ -301,9 +219,9 @@ export class Restorer {
         this.setFold(this.index + 1);
         e.preventDefault();
         break;
-      case 'z':
-      case 'Z':
-        this.undo();
+      case 'r':
+      case 'R':
+        this.resetFold();
         e.preventDefault();
         break;
       default:
@@ -312,17 +230,10 @@ export class Restorer {
   }
 
   update() {
-    if (this.allDone) return;
-    if (performance.now() - this.lastHint > IDLE_HINT_MS) {
-      this.lastHint = performance.now();
-      if ((this.progress[this.index] ?? 0) < 1) {
-        this.onEvent({ type: 'idle-hint', index: this.index, targets: this.targets });
-      }
-    }
     this.sync();
   }
 
-  /** 把当前折、当前颜料的形体蒙版同步到材质 */
+  /** 把当前折的形体与进度同步到材质（不再有高亮，只用于调试通道） */
   sync() {
     const m = this.mesh?.material?.uniforms;
     if (!m) return;
@@ -334,27 +245,15 @@ export class Restorer {
     m.uFold3.value = prog[3] ?? 0;
     m.uFold4.value = prog[4] ?? 0;
 
-    // 整幅壁画统一用当前颜料着色（每个形体各自记着自己的颜色）
-    const rgb = pigmentRgbOf(this.pigment);
-    m.uPigmentR.value = rgb[0];
-    m.uPigmentG.value = rgb[1];
-    m.uPigmentB.value = rgb[2];
-
-    m.uHover.value = 1;
-    m.uOnTarget.value = this.onTarget ?? 0;
     m.uHoverU0.value = this.fold.u0;
     m.uHoverU1.value = Math.min(1, this.fold.u1);
-    if (m.uBrushSize) m.uBrushSize.value = this.brush;
 
-    // 只高亮**当前颜料**该敷的地方 —— 换一种颜色，点亮的位置就跟着变。
-    // 早先把全部未敷彩形体都点亮（只是排了个序），结果四种颜色失去意义：
-    // 无论选哪个，画面上所有轮廓都在发光，随便点都能上色。
-    const active = this.targets.filter((s) => !this.filled.has(s.id)).slice(0, MAX_ACTIVE_SHAPES);
-
+    // 当前折的全部形体都送进去 —— 调试通道需要；正常成像不读这些
+    const list = this.shapes.slice(0, MAX_ACTIVE_SHAPES);
     const bounds = m.uShapeBounds?.value;
     if (bounds) {
       for (let i = 0; i < bounds.length; i++) {
-        const s = active[i];
+        const s = list[i];
         if (s) {
           bounds[i].set(s.box[0], s.box[1], s.box[2] - s.box[0], s.box[3] - s.box[1]);
         } else {
@@ -365,29 +264,31 @@ export class Restorer {
     const slots = m.uShapeSlot?.value;
     if (slots) {
       for (let i = 0; i < slots.length; i++) {
-        slots[i] = active[i] ? active[i].slot : 0;
+        slots[i] = list[i] ? list[i].slot : 0;
       }
     }
-    // 平涂色域的边缘要柔化，否则沿矩形硬切会看出一个梯形
     const soft = m.uShapeSoft?.value;
     if (soft) {
       for (let i = 0; i < soft.length; i++) {
-        soft[i] = active[i]?.mode === 'rect' ? 1 : 0;
+        soft[i] = list[i]?.mode === 'rect' ? 1 : 0;
       }
     }
+    // 正常成像下引导已关闭
+    if (m.uHover) m.uHover.value = 0;
+    if (m.uOnTarget) m.uOnTarget.value = 0;
   }
 
   snapshot() {
     return {
       index: this.index,
-      pigment: this.pigment,
-      brush: +this.brush.toFixed(4),
       progress: this.progress.map((p) => +p.toFixed(3)),
       done: this.done,
+      colorsOn: this.colorsOn,
+      colorsTotal: this.colorsTotal,
+      on: PIGMENTS.filter((p) => this.isOn(p.id)).map((p) => p.id),
+      off: PIGMENTS.filter((p) => this.shapesOf(p.id).length > 0 && !this.isOn(p.id))
+        .map((p) => p.id),
       filled: this.shapes.filter((s) => this.filled.has(s.id)).map((s) => s.what),
-      pending: this.shapes.filter((s) => !this.filled.has(s.id)).map((s) => s.what),
-      targets: this.targets.map((s) => ({ id: s.id, what: s.what, p: s.p })),
-      undoDepth: this.undoStack.length,
     };
   }
 }
@@ -408,17 +309,7 @@ export function pigmentName(id) {
   return PIGMENTS.find((p) => p.id === id)?.name ?? id;
 }
 
-function pigmentRgbOf(id) {
-  const hex = PIGMENTS.find((p) => p.id === id)?.hex ?? '#3f6f92';
-  const n = parseInt(hex.replace('#', ''), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-}
-
 export const RESTORE_TUNING = {
-  IDLE_HINT_MS,
-  BRUSH_MIN,
-  BRUSH_MAX,
-  DEFAULT_BRUSH,
   MASK_SLOT_W,
   SHAPE_COUNT: SHAPES.length,
 };
