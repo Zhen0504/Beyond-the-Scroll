@@ -1,29 +1,31 @@
 import { Raycaster, Vector2, Vector3 } from 'three';
 import { MURAL, PIGMENTS } from './layout.js';
 import { pigmentIndex } from './mural.js';
-import { FOLD_REGIONS, regionsFor } from './regions.js';
+import { FOLD_REGIONS, MAX_TARGETS, regionsFor } from './regions.js';
 
 /**
  * 「重彩」敷彩交互。
  *
- * 观感目标（依使用反馈修订）：
- *   1. 选一种矿物色 → 画面里该上这种颜色的地方发光；其他地方不发光；
- *   2. 必须用鼠标在发光处涂抹，落色只发生在笔尖，不再"一点就充实";
- *   3. 进度按「各色区已涂满的比例」计算，不是按笔迹位移 —— 涂满一格算一格；
- *   4. 可撤销，画错一笔能退回。
+ * 观感目标（依使用反馈多轮修订）：
+ *   1. 选一种矿物色 → 画面上只有**具体的那几处**发光（对应可辨认的画面内容，
+ *      如「九色鹿身躯」「国王的黑马」），其余压暗；
+ *   2. 必须用鼠标在发光处涂抹；笔迹连续跟随指针，单击即落一点，按住拖动即成笔路；
+ *   3. 进度按各目标区**面积覆盖率**计算，必须真的涂满；
+ *   4. 可撤销；
+ *   5. 笔刷大小可由观众自行调整。
  *
  * 本机制为艺术转译，不是壁画绘制流程或文物修复工艺的复原。
  */
 
-/** 涂抹推进系数（区间模型下不再使用，保留供调参参考） */
-const STROKE_GAIN = 0.55;
-/** 笔尖半径（uv）。画幅极宽、色区最窄约 0.023，笔宽须远小于色区 */
-const BRUSH_RADIUS = 0.0012;
-const BRUSH_STRETCH = 1.5;
-/** 每个色区划分为多少格 —— 进度即「涂亮的格数 / 总格数」 */
-const CELLS_PER_REGION = 48;
+/** 进度网格的格边长（壁画 uv）。越小越精细，也越费笔。 */
+const CELL = 0.008;
 const IDLE_HINT_MS = 9000;
 const UNDO_LIMIT = 3;
+
+/** 笔刷大小的可选范围（uv 半径），以及档位 */
+export const BRUSH_MIN = 0.0012;
+export const BRUSH_MAX = 0.0080;
+export const DEFAULT_BRUSH = 0.0030;
 
 export class Restorer {
   constructor({ renderer, camera, muralMesh, paintCanvas, folds, palette, onEvent }) {
@@ -37,24 +39,24 @@ export class Restorer {
     this.raycaster = new Raycaster();
     this.ndc = new Vector2();
     this.hit = new Vector3();
-    this.prevUv = null;
 
     this.palette = palette;
     this.pigment = palette[0]?.id ?? null;
 
-    /** 每一折：各色区的覆盖格。
-     *  进度即「涂亮的格数 / 总格数」—— 必须真的把笔走过整段，来回涂抹不会虚增。 */
-    this.coverage = folds.map((f) =>
-      (FOLD_REGIONS[f.id] ?? []).map(() => new Uint8Array(CELLS_PER_REGION)),
+    this.brush = DEFAULT_BRUSH;
+    this.brushStretch = 1.5;   // 画幅极宽，笔尖略作横向拉伸
+
+    /** 每个目标区一份覆盖网格（按区尺寸动态划分） */
+    this.grids = folds.map((f) =>
+      (FOLD_REGIONS[f.id] ?? []).map((r) => makeGrid(r)),
     );
+
     this.index = 0;
     this.hover = 0;
-    this.onTarget = 0;           // 指针是否正落在目标色区上
+    this.onTarget = 0;
     this.dragging = false;
-    this.lastU = null;           // 上一笔尖位置，用于笔迹插值
+    this.prevUv = null;
     this.lastHint = performance.now();
-    this.undone = 0;             // 连续撤销的层数，用于提示
-    this.strokeSnapshot = null;
 
     this.undoStack = [];
     this.redoStack = [];
@@ -71,16 +73,16 @@ export class Restorer {
     return this.folds[this.index];
   }
 
-  /** 某个色区当前的覆盖进度（0..1）= 涂亮的格数 / 总格数 */
+  /** 每个目标区当前的覆盖进度（0..1） */
   regionProgressAt(foldIdx, regionIdx) {
-    const grid = this.coverage[foldIdx]?.[regionIdx];
+    const grid = this.grids[foldIdx]?.[regionIdx];
     if (!grid) return 0;
     let lit = 0;
-    for (let i = 0; i < grid.length; i++) if (grid[i]) lit += 1;
-    return lit / grid.length;
+    for (let i = 0; i < grid.cells.length; i++) if (grid.cells[i]) lit += 1;
+    return lit / grid.cells.length;
   }
 
-  /** 本折完成度 = 各色区覆盖率的平均值 */
+  /** 本折完成度 = 各目标区覆盖率的平均值 */
   get progress() {
     return this.folds.map((_, fi) => {
       const n = (FOLD_REGIONS[this.folds[fi].id] ?? []).length;
@@ -100,7 +102,7 @@ export class Restorer {
     return p.length > 0 && p.every((v) => v >= 1);
   }
 
-  /** 当前颜料在本折的目标色区 */
+  /** 当前颜料在本折的目标区（矩形） */
   get targets() {
     return regionsFor(this.fold.id, this.pigment);
   }
@@ -122,16 +124,9 @@ export class Restorer {
   setFold(i) {
     this.index = Math.max(0, Math.min(this.folds.length - 1, i));
     this.prevUv = null;
-    this.lastU = null;
-    this.undone = 0;
     this.lastHint = performance.now();
     this.sync();
     this.onEvent({ type: 'fold', index: this.index, fold: this.fold });
-  }
-
-  /** 敷彩不再自动预铺：一切由观众的笔触决定 */
-  setSpeed() {
-    /* 保留接口，速成/全手作已并入统一流程 */
   }
 
   setPigment(id) {
@@ -146,19 +141,20 @@ export class Restorer {
     });
   }
 
-  cyclePigment(step) {
-    const i = this.palette.findIndex((p) => p.id === this.pigment);
-    const n = this.palette.length;
-    this.setPigment(this.palette[(i + step + n) % n].id);
+  /** 调整笔刷大小（uv 半径） */
+  setBrush(size) {
+    const v = Math.max(BRUSH_MIN, Math.min(BRUSH_MAX, Number(size) || DEFAULT_BRUSH));
+    this.brush = v;
+    this.sync();
+    this.onEvent({ type: 'brush', size: v });
+    return v;
   }
 
   // ---- 撤销 ----
 
-  /** 在落笔前留一张快照 */
   beginStroke() {
     if (!this.paint?.snapshot) return;
-    const snap = this.paint.snapshot();
-    this.undoStack.push(snap);
+    this.undoStack.push(this.paint.snapshot());
     if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
     this.redoStack.length = 0;
   }
@@ -190,21 +186,20 @@ export class Restorer {
     return true;
   }
 
-  /** 撤销后把本折覆盖格收一收，使进度与画面一致 */
+  /** 撤销后按比例熄掉一部分格 */
   rollbackProgress() {
-    const grids = this.coverage[this.index];
+    const grids = this.grids[this.index];
     if (!grids) return;
     for (let i = grids.length - 1; i >= 0; i--) {
-      const g = grids[i];
+      const cells = grids[i].cells;
       let lit = 0;
-      for (let k = 0; k < g.length; k++) if (g[k]) lit += 1;
+      for (let k = 0; k < cells.length; k++) if (cells[k]) lit += 1;
       if (!lit) continue;
-      // 从右往左熄掉约三成已点亮的格
       const toClear = Math.max(1, Math.round(lit * 0.3));
       let cleared = 0;
-      for (let k = g.length - 1; k >= 0 && cleared < toClear; k--) {
-        if (g[k]) {
-          g[k] = 0;
+      for (let k = cells.length - 1; k >= 0 && cleared < toClear; k--) {
+        if (cells[k]) {
+          cells[k] = 0;
           cleared += 1;
         }
       }
@@ -217,14 +212,13 @@ export class Restorer {
   onDown(e) {
     this.dragging = true;
     this.prevUv = null;
-    this.beginStroke();     // 一笔只留一次快照
+    this.beginStroke();
     this.paintAt(e);
   }
 
   onUp() {
     this.dragging = false;
     this.prevUv = null;
-    this.lastU = null;
   }
 
   onMove(e) {
@@ -242,93 +236,117 @@ export class Restorer {
       this.sync();
       return;
     }
-    const u = hit.uv.x;
-    const inFold = this.foldAt(u) === this.index;
-    this.onTarget = inFold && this.isTarget(u) ? 1 : 0;
+    this.onTarget = this.regionAt(hit.uv) ? 1 : 0;
     this.sync();
   }
 
-  /** 该位置是否属于当前颜料的目标色区 */
-  isTarget(u) {
-    return this.targets.some((r) => u >= r.u0 && u <= r.u1);
+  /** 命中哪个目标区（返回下标，未命中返回 -1） */
+  regionAt({ x, y }) {
+    const list = FOLD_REGIONS[this.fold.id] ?? [];
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i];
+      if (r.p !== this.pigment) continue;
+      if (x >= r.u0 && x <= r.u1 && y >= r.v0 && y <= r.v1) return i;
+    }
+    return -1;
   }
 
   paintAt(e) {
     const hit = this.pickFrom(e);
     if (!hit) return;
+    const p = { x: hit.uv.x, y: hit.uv.y };
 
-    const u = hit.uv.x;
-    const v = hit.uv.y;
-    const where = this.foldAt(u);
-
-    // 只有落在「本折 + 当前颜料的目标色区」里，才真正落色。
-    // 这是"必须涂对地方"的机制，也避免观众在无关处浪费力气。
-    const ok = where === this.index && this.isTarget(u);
-    if (!ok) {
+    const ri = this.regionAt(p);
+    if (ri < 0) {
       this.onEvent({
         type: 'off-target',
-        index: where,
         message: this.targets.length
           ? '这一处不需要这种颜色 —— 请涂在发光的地方。'
           : `本折不用${pigmentName(this.pigment)} —— 换一种颜色试试。`,
       });
-      this.prevUv = { x: u, y: v };
+      this.prevUv = p;
       return;
     }
 
-    const index = pigmentIndex(this.pigment);
-    this.paint?.stamp(
-      { x: u, y: v },
-      this.prevUv,
-      index,
-      0.5,
-      { radius: BRUSH_RADIUS, stretch: BRUSH_STRETCH },
-    );
-
-    // 进度只随「笔在色区里走过的距离」增长。
-    // 单击（没有位移）不推进 —— 这样才有真正的涂抹过程，不会一点就充实。
-    const travelled = this.prevUv ? Math.abs(u - this.prevUv.x) : 0;
-    this.prevUv = { x: u, y: v };
-    this.advance(u, travelled);
+    // 落色：与上一笔之间连成一段，笔路连续（跟随指针）
+    const from = this.prevUv ?? p;
+    this.stampSegment(from, p);
+    this.prevUv = p;
+    this.advanceSegment(ri, from, p);
   }
 
   /**
-   * 按色区记录覆盖：笔尖覆盖到的格点亮。
-   * 单击只点亮笔尖宽度内的少数几格；要涂满必须真的把笔走过整段。
+   * 沿线段连续落笔，使笔迹跟随指针而不是散点。
+   * 单击时 n = 1，落一笔，立刻可见 —— 符合"鼠标左键单击即上色"。
    */
-  advance(u) {
+  stampSegment(from, to) {
+    const stretch = this.brushStretch;
+    const dist = Math.hypot((to.x - from.x) * stretch, to.y - from.y);
+    const step = Math.max(this.brush * 0.5, 1e-4);
+    const n = Math.max(1, Math.min(64, Math.ceil(dist / step)));
+    const index = pigmentIndex(this.pigment);
+    let prev = from;
+    for (let i = 1; i <= n; i++) {
+      const t = i / n;
+      const p = {
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t,
+      };
+      this.paint?.stamp(p, prev, index, 0.5, { radius: this.brush, stretch });
+      prev = p;
+    }
+  }
+
+  /**
+   * 把线段覆盖到的格点亮。
+   * 每个采样点按**笔尖大小的方形**点亮（不是一条线），
+   * 这样单击也会留下一小片颜色，拖动时宽度也符合笔刷大小。
+   */
+  advanceSegment(rigIdx, from, to) {
     const list = FOLD_REGIONS[this.fold.id] ?? [];
-    const grids = this.coverage[this.index];
-    let hitIndex = -1;
-    for (let i = 0; i < list.length; i++) {
-      if (list[i].p !== this.pigment) continue;
-      if (u >= list[i].u0 && u <= list[i].u1) {
-        hitIndex = i;
-        break;
+    const r = list[rigIdx];
+    const grid = this.grids[this.index][rigIdx];
+    if (!r || !grid) return;
+
+    const before = this.regionProgressAt(this.index, rigIdx);
+    const half = this.brush * this.brushStretch;
+    const halfV = this.brush;
+
+    // 预先把笔尖方形的格范围算出来，再沿线段采样（避免重复换算）
+    const w = r.u1 - r.u0;
+    const h = r.v1 - r.v0;
+    const steps = Math.max(1, Math.min(240, Math.ceil(
+      Math.hypot(to.x - from.x, to.y - from.y) / (CELL * 0.5),
+    )));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = from.x + (to.x - from.x) * t;
+      const y = from.y + (to.y - from.y) * t;
+
+      const ax = Math.max(r.u0, x - half);
+      const bx = Math.min(r.u1, x + half);
+      const ay = Math.max(r.v0, y - halfV);
+      const by = Math.min(r.v1, y + halfV);
+      if (bx < ax || by < ay) continue;
+
+      const c0 = Math.max(0, Math.floor(((ax - r.u0) / w) * grid.cols));
+      const c1 = Math.min(grid.cols - 1, Math.ceil(((bx - r.u0) / w) * grid.cols) - 1);
+      const r0 = Math.max(0, Math.floor(((ay - r.v0) / h) * grid.rows));
+      const r1 = Math.min(grid.rows - 1, Math.ceil(((by - r.v0) / h) * grid.rows) - 1);
+
+      for (let rr = r0; rr <= r1; rr++) {
+        const base = rr * grid.cols;
+        for (let cc = c0; cc <= c1; cc++) grid.cells[base + cc] = 1;
       }
     }
-    if (hitIndex < 0) return;
 
-    const r = list[hitIndex];
-    const grid = grids[hitIndex];
-    const before = this.regionProgressAt(this.index, hitIndex);
+    // 单击（没有位移）也要真正落色：直接按笔尖点一次
+    if (steps <= 1 && Math.abs(to.x - from.x) < 1e-9 && Math.abs(to.y - from.y) < 1e-9) {
+      lightBrush(grid, r, from.x, from.y, half, halfV);
+    }
 
-    // 笔尖在色区内覆盖的 u 范围 → 对应到格。
-    // 笔迹在相邻两点之间是连续的，必须把整段区间都点亮，
-    // 否则快速拖动会在中间留下空洞，涂不满。
-    const half = BRUSH_RADIUS * BRUSH_STRETCH;
-    const width = Math.max(1e-6, r.u1 - r.u0);
-    const prevU = this.lastU ?? u;
-    const lo = Math.max(r.u0, Math.min(prevU, u) - half);
-    const hi = Math.min(r.u1, Math.max(prevU, u) + half);
-    this.lastU = u;
-
-    const i0 = Math.floor(((lo - r.u0) / width) * grid.length);
-    const i1 = Math.ceil(((hi - r.u0) / width) * grid.length) - 1;
-    for (let k = Math.max(0, i0); k <= Math.min(grid.length - 1, i1); k++) grid[k] = 1;
-
-    const after = this.regionProgressAt(this.index, hitIndex);
-    this.hover = 1;
+    const after = this.regionProgressAt(this.index, rigIdx);
+    this.onTarget = 1;
     this.sync();
 
     if (before < 1 && after >= 1) {
@@ -358,10 +376,6 @@ export class Restorer {
     return hits.length ? hits[0] : null;
   }
 
-  foldAt(u) {
-    return foldIndexForU(u, this.folds);
-  }
-
   // ---- 键盘 ----
 
   onKey(e) {
@@ -373,11 +387,17 @@ export class Restorer {
     }
     switch (e.key) {
       case '[':
+        this.setBrush(this.brush - 0.0006);
+        e.preventDefault();
+        break;
+      case ']':
+        this.setBrush(this.brush + 0.0006);
+        e.preventDefault();
+        break;
       case 'q':
         this.setFold(this.index - 1);
         e.preventDefault();
         break;
-      case ']':
       case 'e':
         this.setFold(this.index + 1);
         e.preventDefault();
@@ -400,18 +420,11 @@ export class Restorer {
         this.onEvent({ type: 'idle-hint', index: this.index, targets: this.targets });
       }
     }
-    if (!this.dragging && this.hover > 0) {
-      this.hover *= 0.9;
-      if (this.hover < 0.02) this.hover = 0;
-    }
     this.sync();
   }
 
   /**
-   * 把当前折、目标色区与颜料同步到材质。
-   *
-   * 关键：引导高亮是**常驻**的，不依赖鼠标是否移动到画面上。
-   * 早先把它挂在 hover 上，导致观众不动鼠标时完全看不到「该涂哪里」。
+   * 同步到材质。引导高亮**常驻**，不依赖鼠标是否在画面上。
    */
   sync() {
     const m = this.mesh?.material?.uniforms;
@@ -429,19 +442,28 @@ export class Restorer {
     m.uPigmentG.value = rgb[1];
     m.uPigmentB.value = rgb[2];
 
-    // 常驻显示目标区；指针正落在目标上时再加一点呼吸增强
     m.uHover.value = 1;
     m.uOnTarget.value = this.onTarget ?? 0;
     m.uHoverU0.value = this.fold.u0;
     m.uHoverU1.value = Math.min(1, this.fold.u1);
+    if (m.uBrushSize) m.uBrushSize.value = this.brush;
 
-    // 目标色区（最多 8 段）
+    // 目标矩形（最多 16 个，xy 中心 / zw 半宽半高）
     const slots = m.uTargets?.value;
     if (slots) {
-      const active = this.targets;
+      const active = this.targets.slice(0, MAX_TARGETS);
       for (let i = 0; i < slots.length; i++) {
         const r = active[i];
-        slots[i].set(r ? r.u0 : 0, r ? r.u1 : 0);
+        if (r) {
+          slots[i].set(
+            (r.u0 + r.u1) / 2,
+            (r.v0 + r.v1) / 2,
+            Math.max(0, (r.u1 - r.u0) / 2),
+            Math.max(0, (r.v1 - r.v0) / 2),
+          );
+        } else {
+          slots[i].set(0, 0, 0, 0);
+        }
       }
     }
   }
@@ -450,11 +472,46 @@ export class Restorer {
     return {
       index: this.index,
       pigment: this.pigment,
+      brush: +this.brush.toFixed(4),
       progress: this.progress.map((p) => +p.toFixed(3)),
       done: this.done,
       undoDepth: this.undoStack.length,
-      targets: this.targets.map((r) => ({ p: r.p, u0: r.u0, u1: r.u1 })),
+      targets: this.targets.map((r) => ({ p: r.p, what: r.what })),
     };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  网格辅助
+ * ------------------------------------------------------------------ */
+
+function makeGrid(r) {
+  const cols = Math.max(4, Math.round(Math.abs(r.u1 - r.u0) / CELL));
+  const rows = Math.max(4, Math.round(Math.abs(r.v1 - r.v0) / CELL));
+  return { cols, rows, cells: new Uint8Array(cols * rows) };
+}
+
+/** 点亮以 (x,y) 为中心、半径 (halfU, halfV) 的方形所覆盖的格 */
+function lightBrush(grid, r, x, y, halfU, halfV) {
+  const { cols, rows, cells } = grid;
+  const w = r.u1 - r.u0;
+  const h = r.v1 - r.v0;
+  if (w <= 0 || h <= 0) return;
+
+  const ax = Math.max(r.u0, x - halfU);
+  const bx = Math.min(r.u1, x + halfU);
+  const ay = Math.max(r.v0, y - halfV);
+  const by = Math.min(r.v1, y + halfV);
+  if (bx < ax || by < ay) return;
+
+  const c0 = Math.max(0, Math.floor(((ax - r.u0) / w) * cols));
+  const c1 = Math.min(cols - 1, Math.ceil(((bx - r.u0) / w) * cols) - 1);
+  const r0 = Math.max(0, Math.floor(((ay - r.v0) / h) * rows));
+  const r1 = Math.min(rows - 1, Math.ceil(((by - r.v0) / h) * rows) - 1);
+
+  for (let rr = r0; rr <= r1; rr++) {
+    const base = rr * cols;
+    for (let cc = c0; cc <= c1; cc++) cells[base + cc] = 1;
   }
 }
 
@@ -479,5 +536,11 @@ function pigmentRgbOf(id) {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
-export const RESTORE_TUNING = { STROKE_GAIN, BRUSH_RADIUS, BRUSH_STRETCH, IDLE_HINT_MS };
+export const RESTORE_TUNING = {
+  CELL,
+  IDLE_HINT_MS,
+  BRUSH_MIN,
+  BRUSH_MAX,
+  DEFAULT_BRUSH,
+};
 export { MURAL };

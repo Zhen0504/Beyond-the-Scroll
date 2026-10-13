@@ -3,7 +3,7 @@ import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { PIGMENTS } from './layout.js';
 import { FOLD_REGIONS } from './regions.js';
-import { pigmentName } from './restore.js';
+import { DEFAULT_BRUSH, BRUSH_MIN, BRUSH_MAX, pigmentName } from './restore.js';
 
 /**
  * 卷三导览。
@@ -91,6 +91,22 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     setUndoDepth(restorer?.undoStack?.length ?? 0);
   }, [restorer]);
 
+  // 笔刷滑杆：非受控控件，用 ref 在挂载后直接绑原生监听。
+  // 依赖 world/restorer —— 场景是异步建好的，首次渲染时 restorer 还不存在。
+  const brushRef = useRef(null);
+  useEffect(() => {
+    const el = brushRef.current;
+    if (!el || !restorer) return undefined;
+    el.value = String(restorer.brush);
+    const apply = () => restorer.setBrush(Number(el.value));
+    el.addEventListener('input', apply);
+    el.addEventListener('change', apply);
+    return () => {
+      el.removeEventListener('input', apply);
+      el.removeEventListener('change', apply);
+    };
+  }, [restorer]);
+
   const selectPigment = useCallback(
     (id) => {
       setPigment(id);
@@ -115,7 +131,8 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const foldProgress = snapshot.progress[state.chapter] ?? 0;
   const foldDone = foldProgress >= 1;
   const allDone = snapshot.progress.length > 0 && snapshot.progress.every((p) => p >= 1);
-  const pct = Math.round(foldProgress * 100);
+  // 敷彩初期进度很小，按整数取整会一直显示 0%，让人以为没反应
+  const pct = foldProgress <= 0 ? 0 : foldProgress < 0.01 ? '<1' : Math.round(foldProgress * 100);
 
   const currentPigment = PIGMENTS.find((p) => p.id === pigment) ?? PIGMENTS[0];
   // 本折用当前颜料的目标色区。直接读 restorer，避免与快照时机不一致。
@@ -257,6 +274,18 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
 
             <div className="fuwang__tools">
+              <label className="fuwang__brush" title="笔刷大小（[ ] 也可调整）">
+                <span>笔刷</span>
+                <input
+                  ref={brushRef}
+                  type="range"
+                  min={BRUSH_MIN}
+                  max={BRUSH_MAX}
+                  step="0.0002"
+                  defaultValue={DEFAULT_BRUSH}
+                  aria-label="笔刷大小"
+                />
+              </label>
               <button
                 onClick={doUndo}
                 disabled={undoDepth === 0}

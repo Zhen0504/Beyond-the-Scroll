@@ -4,9 +4,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { FOLDS, MURAL, PIGMENTS, PIGMENT_KEYS, uToX, stopsForFold } from '../src/scenes/world/fuwang/layout.js';
-import { FOLD_REGIONS, regionsFor, hasRegions } from '../src/scenes/world/fuwang/regions.js';
-import { Restorer, foldForU, pigmentName } from '../src/scenes/world/fuwang/restore.js';
+import {
+  FOLDS, MURAL, PIGMENTS, PIGMENT_KEYS, uToX, stopsForFold,
+} from '../src/scenes/world/fuwang/layout.js';
+import {
+  FOLD_REGIONS, MAX_TARGETS, regionsFor, hasRegions, regionArea, foldArea,
+} from '../src/scenes/world/fuwang/regions.js';
+import {
+  Restorer, foldForU, pigmentName, BRUSH_MIN, BRUSH_MAX, DEFAULT_BRUSH,
+} from '../src/scenes/world/fuwang/restore.js';
 import { CHAPTERS } from '../src/scenes/world/fuwang/story.js';
 import { FOLD_QUOTES, PROJECT_NOTICE } from '../src/scenes/world/fuwang/quotes.js';
 
@@ -35,9 +41,7 @@ test('每折机位对准本折区段：视线中心与折中心一致', () => {
 test('机位距离与折宽成正比，可视横跨足以容纳本折', () => {
   const PER_DIST = 0.1577;   // 实测标定
   for (const f of FOLDS) {
-    const visible = f.dist * PER_DIST;
-    const span = f.u1 - f.u0;
-    assert.ok(visible >= span * 1.05, `${f.name} 可视横跨应大于折宽`);
+    assert.ok(f.dist * PER_DIST >= (f.u1 - f.u0) * 1.05, `${f.name} 可视横跨应大于折宽`);
     assert.ok(f.dist > 0.5 && f.dist < 4);
   }
 });
@@ -62,55 +66,65 @@ test('foldForU 能把任意位置映射到正确的折，且不越界', () => {
   }
 });
 
-/* ================= 色区（该涂哪里） ================= */
+/* ================= 目标区（2D 矩形） ================= */
 
-test('每折的色区完整覆盖本折、互不重叠，且都在本折范围内', () => {
-  for (const f of FOLDS) {
-    const list = FOLD_REGIONS[f.id];
-    assert.ok(Array.isArray(list) && list.length >= 2, `${f.name} 至少要有两个色区`);
-    assert.ok(
-      Math.abs(list[0].u0 - f.u0) < 1e-6,
-      `${f.name} 首个色区应从本折起点开始（${list[0].u0} vs ${f.u0}）`,
-    );
-    assert.ok(
-      Math.abs(list[list.length - 1].u1 - f.u1) < 1e-6,
-      `${f.name} 末个色区应到本折终点（${list[list.length - 1].u1} vs ${f.u1}）`,
-    );
-    for (let i = 1; i < list.length; i++) {
-      assert.equal(list[i].u0, list[i - 1].u1, `${f.name} 色区之间不应有缝或重叠`);
-    }
+test('每个目标区都是有效的壁画矩形（在画幅内、非退化）', () => {
+  for (const [foldId, list] of Object.entries(FOLD_REGIONS)) {
+    assert.ok(list.length >= 3, `${foldId} 的目标区过少`);
+    assert.ok(list.length <= MAX_TARGETS, `${foldId} 的目标区超过着色器上限 ${MAX_TARGETS}`);
     for (const r of list) {
-      assert.ok(r.u1 > r.u0, `${f.name}/${r.what} 区间应为正`);
-      assert.ok(PIGMENT_KEYS.includes(r.p), `${f.name}/${r.what} 颜料须在颜料盘内`);
-      assert.ok(r.what && r.what.length >= 2, `${f.name} 的色区要说明涂的是画面何处`);
+      assert.ok(PIGMENT_KEYS.includes(r.p), `${foldId}/${r.what} 颜料须在颜料盘内`);
+      assert.ok(r.u1 > r.u0 && r.v1 > r.v0, `${foldId}/${r.what} 矩形必须非退化`);
+      assert.ok(r.u0 >= 0 && r.u1 <= 1, `${foldId}/${r.what} 横向须在画幅内`);
+      assert.ok(r.v0 >= 0 && r.v1 <= 1, `${foldId}/${r.what} 纵向须在画幅内`);
+      assert.ok(r.what && r.what.length >= 2, `${foldId} 的目标区要说明画面上是什么`);
+      // 目标区不应大到「一整块涂一个颜色」
+      assert.ok(
+        regionArea(r) < 0.16,
+        `${foldId}/${r.what} 面积 ${regionArea(r).toFixed(3)} 过大，会像"一整块涂一个色"`,
+      );
+    }
+  }
+});
+
+test('目标区落在所属折的范围内', () => {
+  for (const f of FOLDS) {
+    for (const r of FOLD_REGIONS[f.id] ?? []) {
+      assert.ok(r.u0 >= f.u0 - 1e-6 && r.u1 <= f.u1 + 1e-6,
+        `${f.name}/${r.what} 超出本折区间 [${f.u0}, ${f.u1}]`);
     }
   }
 });
 
 test('四种矿物色都被用到，不会有点了没处涂的颜色', () => {
   const used = new Set();
-  for (const list of Object.values(FOLD_REGIONS)) {
-    for (const r of list) used.add(r.p);
-  }
+  for (const list of Object.values(FOLD_REGIONS)) for (const r of list) used.add(r.p);
   for (const key of PIGMENT_KEYS) {
-    assert.ok(used.has(key), `${pigmentName(key)} 从未被任何色区使用 —— 观众点了会困惑`);
+    assert.ok(used.has(key), `${pigmentName(key)} 从未被任何目标区使用 —— 观众点了会困惑`);
   }
 });
 
 test('每一折都用到了至少三种颜色，保证"选色—找位置"的层次', () => {
   for (const f of FOLDS) {
-    const kinds = new Set(FOLD_REGIONS[f.id].map((r) => r.p));
+    const kinds = new Set((FOLD_REGIONS[f.id] ?? []).map((r) => r.p));
     assert.ok(kinds.size >= 3, `${f.name} 只用到 ${kinds.size} 种颜色，过少`);
+  }
+});
+
+test('每折的涂抹总量在可接受的范围内（既不太空也不太累）', () => {
+  for (const f of FOLDS) {
+    const a = foldArea(f.id);
+    assert.ok(a > 0.05, `${f.name} 目标区总面积 ${a.toFixed(3)} 过小，没什么可涂`);
+    assert.ok(a < 0.75, `${f.name} 目标区总面积 ${a.toFixed(3)} 过大，会涂得很累`);
   }
 });
 
 test('regionsFor / hasRegions 正确筛选当前颜料的目标区', () => {
   const fold = FOLDS[2];
-  const shiqing = regionsFor(fold.id, 'shiqing');
-  assert.ok(shiqing.length >= 1);
-  assert.ok(shiqing.every((r) => r.p === 'shiqing'));
+  const q = regionsFor(fold.id, 'shiqing');
+  assert.ok(q.length >= 1);
+  assert.ok(q.every((r) => r.p === 'shiqing'));
   assert.ok(hasRegions(fold.id, 'shiqing'));
-  // 造一个不存在的折 id
   assert.deepEqual(regionsFor('no-such-fold', 'shiqing'), []);
 });
 
@@ -136,10 +150,9 @@ test('每折的停点都对准本折区段', () => {
   const PER_DIST = 0.1577;
   for (const c of CHAPTERS) {
     for (const s of c.stops) {
-      const visible = s.camera[2] * PER_DIST;
       const centre = s.camera[0] / MURAL.width + 0.5;
       assert.ok(centre > c.u0 - 0.05 && centre < c.u1 + 0.05, `${c.name}/${s.title} 视线偏离本折`);
-      assert.ok(visible > (c.u1 - c.u0) * 0.6, `${c.name}/${s.title} 可视范围过窄`);
+      assert.ok(s.camera[2] * PER_DIST > (c.u1 - c.u0) * 0.6, `${c.name}/${s.title} 可视范围过窄`);
     }
   }
 });
@@ -178,24 +191,24 @@ function makeUniforms() {
     uFold2: { value: 0 },
     uFold3: { value: 0 },
     uFold4: { value: 0 },
+    uBrushSize: { value: 0 },
     uTargets: {
-      value: Array.from({ length: 8 }, () => ({
-        x: 0, y: 0,
-        set(a, b) { this.x = a; this.y = b; },
+      value: Array.from({ length: MAX_TARGETS }, () => ({
+        x: 0, y: 0, z: 0, w: 0,
+        set(a, b, c, d) { this.x = a; this.y = b; this.z = c; this.w = d; },
       })),
     },
   };
 }
 
-/** 最小可用 Restorer：不依赖 WebGL，带可观测的敷彩画布 */
 function makeRestorer() {
   const uniforms = makeUniforms();
   const stamped = [];
   const events = [];
-  let snapshots = 0;
+  let snaps = 0;
   const canvas = {
     stamp: (...a) => stamped.push(a),
-    snapshot: () => ({ id: ++snapshots }),
+    snapshot: () => ({ id: ++snaps }),
     restore: (h) => { canvas.lastRestored = h; return true; },
   };
   const r = new Restorer({
@@ -210,10 +223,20 @@ function makeRestorer() {
   return { r, uniforms, events, stamped, canvas };
 }
 
-/** 取某折某颜料的第一个色区中点 */
-function midOf(foldId, pigmentId) {
-  const r = regionsFor(foldId, pigmentId)[0];
-  return (r.u0 + r.u1) / 2;
+/** 在某个目标区里来回涂满（直接驱动内部接口，绕过 pointer 事件） */
+function fillRegion(r, foldIdx, regionIdx, steps = 40) {
+  const list = FOLD_REGIONS[FOLDS[foldIdx].id];
+  const region = list[regionIdx];
+  r.setFold(foldIdx);
+  r.setPigment(region.p);
+  const w = region.u1 - region.u0;
+  const h = region.v1 - region.v0;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const y = region.v0 + h * t;
+    r.advanceSegment(regionIdx, { x: region.u0, y }, { x: region.u1, y });
+  }
+  return r.regionProgressAt(foldIdx, regionIdx);
 }
 
 test('选色后能报出本折该涂的位置，供界面高亮', () => {
@@ -222,93 +245,66 @@ test('选色后能报出本折该涂的位置，供界面高亮', () => {
   r.setPigment('shiqing');
   const ev = events.filter((e) => e.type === 'pigment').pop();
   assert.ok(ev, '换色应发出 pigment 事件');
-  assert.ok(ev.count >= 1, '应报出本折石青的色区数');
+  assert.ok(ev.count >= 1, '应报出本折石青的目标区数');
   assert.ok(ev.targets.every((t) => t.p === 'shiqing'));
+  assert.ok(ev.targets.every((t) => t.what), '每个目标区都要说明画面上是什么');
 });
 
-test('引导高亮常驻：不依赖鼠标移动，选色后 uHover 即为 1', () => {
+test('引导高亮常驻：选色后 uHover 即为 1，目标矩形写入材质', () => {
   const { r, uniforms } = makeRestorer();
   r.setFold(0);
-  r.setPigment('shiqing');
+  r.setPigment('shilv');
   assert.equal(uniforms.uHover.value, 1, '引导应常驻，不能等鼠标移上来才亮');
 
-  // 目标色区应已写入材质
-  const want = regionsFor(FOLDS[0].id, 'shiqing');
-  assert.ok(want.length >= 1, '本折石青应有目标色区');
-  assert.ok(Math.abs(uniforms.uTargets.value[0].x - want[0].u0) < 1e-9);
-  assert.ok(Math.abs(uniforms.uTargets.value[0].y - want[0].u1) < 1e-9);
-  // 未使用的槽位应为空
-  assert.equal(uniforms.uTargets.value[want.length].y, 0, '多余槽位应清零');
+  const want = regionsFor(FOLDS[0].id, 'shilv');
+  assert.ok(want.length >= 1);
+  const slot = uniforms.uTargets.value[0];
+  assert.ok(Math.abs(slot.x - (want[0].u0 + want[0].u1) / 2) < 1e-9, '应写入矩形中心 x');
+  assert.ok(Math.abs(slot.z - (want[0].u1 - want[0].u0) / 2) < 1e-9, '应写入半宽');
+  assert.ok(slot.w > 0, '应写入半高');
+
+  // 其余槽位清零
+  assert.equal(uniforms.uTargets.value[want.length].z, 0, '多余槽位应清零');
 });
 
-test('进度按色区推进：必须涂满每一段的宽度才算完成', () => {
+test('涂满一个目标区才计为该区 100%，不影响其他区', () => {
   const { r } = makeRestorer();
-  r.setFold(0);
-  const list = FOLD_REGIONS[FOLDS[0].id];
-  assert.ok(list.length >= 2);
-
-  // 只涂第一个色区：把笔从该段左端走到右端
-  const first = list[0];
-  r.setPigment(first.p);
-  const steps = 60;
-  for (let i = 0; i <= steps; i++) {
-    r.advance(first.u0 + ((first.u1 - first.u0) * i) / steps);
-  }
-
-  assert.equal(r.regionProgressAt(0, 0), 1, '第一个色区走满后应为 100%');
-  assert.ok(r.regionProgressAt(0, 1) < 0.2, '未涂的色区不应被推进');
-  assert.ok(r.progress[0] < 1, '只涂一段不应让整折完成');
+  const p0 = fillRegion(r, 0, 0);
+  assert.equal(p0, 1, '在区内来回涂满后应为 100%');
+  assert.ok(r.regionProgressAt(0, 1) < 0.2, '未涂的区不应被推进');
+  assert.ok(r.progress[0] < 1, '只涂一个区不应让整折完成');
 });
 
-test('一次点击只推进极小一段，不会"一点就充实"', () => {
+test('单击即落色（一小片），但远不会充实', () => {
   const { r } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.advance(u);   // 单击：笔尖只覆盖自身宽度
+  const cx = (list[0].u0 + list[0].u1) / 2;
+  const cy = (list[0].v0 + list[0].v1) / 2;
+  r.advanceSegment(0, { x: cx, y: cy }, { x: cx, y: cy });
   const p = r.regionProgressAt(0, 0);
-  assert.ok(p > 0, '单击应留下一点痕迹');
-  assert.ok(p < 0.15, `单击推进过多（${p.toFixed(3)}），会失去涂抹过程`);
+  assert.ok(p > 0.01, `单击应真的落下一小片颜色（实为 ${(p * 100).toFixed(1)}%）`);
+  assert.ok(p < 0.15, `单击推进过多（${(p * 100).toFixed(1)}%），会失去涂抹过程`);
 });
 
-test('进度按「涂到的区间」计：来回涂抹不会虚增，必须真的走完', () => {
+test('进度按面积覆盖：只涂一条横线远不到 100%', () => {
   const { r } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const width = list[0].u1 - list[0].u0;
-  const mid = (list[0].u0 + list[0].u1) / 2;
-
-  // 在色区中间来回涂很多次，区间宽度不变
-  for (let i = 0; i < 60; i++) r.advance(mid + (i % 2 ? width * 0.05 : -width * 0.05));
-  const wandered = r.regionProgressAt(0, 0);
-  assert.ok(wandered < 0.3, `来回涂抹不应虚增进度（实为 ${wandered.toFixed(3)}）`);
-
-  // 真正从左走到右
-  const steps = 60;
-  for (let i = 0; i <= steps; i++) {
-    r.advance(list[0].u0 + (width * i) / steps);
-  }
-  assert.equal(r.regionProgressAt(0, 0), 1, '走满整段后应达 100%');
+  const mid = (list[0].v0 + list[0].v1) / 2;
+  r.advanceSegment(0, { x: list[0].u0, y: mid }, { x: list[0].u1, y: mid });
+  const p = r.regionProgressAt(0, 0);
+  assert.ok(p < 0.4, `只涂一条线就到了 ${(p * 100).toFixed(0)}%，覆盖率算错了`);
 });
 
-test('涂五折全部色区后，整幅完成并发 all-done', () => {
+test('涂满五折全部目标区后整幅完成，并发 all-done', () => {
   const { r, events } = makeRestorer();
-  const sweep = (fi, f) => {
-    r.setFold(fi);
-    const list = FOLD_REGIONS[f.id];
-    for (const [ri, region] of list.entries()) {
-      r.setPigment(region.p);
-      const width = region.u1 - region.u0;
-      for (let i = 0; i <= 400 && r.regionProgressAt(fi, ri) < 1; i++) {
-        r.advance(region.u0 + (width * i) / 400);
-      }
-    }
-  };
-  for (const [fi, f] of FOLDS.entries()) sweep(fi, f);
-
-  assert.ok(r.allDone, '五折全部色区涂满后应为完成');
+  for (const [fi, f] of FOLDS.entries()) {
+    for (const [ri] of (FOLD_REGIONS[f.id] ?? []).entries()) fillRegion(r, fi, ri);
+  }
+  assert.ok(r.allDone, '五折全部涂满后应为完成');
   assert.ok(events.some((e) => e.type === 'fold-done'));
   assert.ok(events.some((e) => e.type === 'all-done'));
 });
@@ -317,50 +313,116 @@ test('涂抹非目标处：不落色、不推进，并给出明确指引', () =>
   const { r, events, stamped } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
-  // 选一种本折第一个色区不用的颜料
-  const otherPigment = PIGMENT_KEYS.find((k) => k !== list[0].p);
-  r.setPigment(otherPigment);
 
-  const before = [...r.coverage[0]];
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.pickFrom = () => ({ uv: { x: u, y: 0.5 } });
-  const stampedBefore = stamped.length;
+  // 找一个本折所有目标区都未覆盖的位置（画面上缘的空白处）
+  const covered = (u, v) => list.some(
+    (x) => u >= x.u0 && u <= x.u1 && v >= x.v0 && v <= x.v1,
+  );
+  let pt = null;
+  for (let u = 0.005; u < FOLDS[0].u1 && !pt; u += 0.005) {
+    for (let v = 0.98; v > 0.5; v -= 0.02) {
+      if (!covered(u, v)) { pt = { x: u, y: v }; break; }
+    }
+  }
+  assert.ok(pt, '第一折应存在未被目标区覆盖的位置（用于本测试）');
+
+  const pigmentHere = list.find((x) => x.p)?.p;
+  r.setPigment(pigmentHere);
+  r.pickFrom = () => ({ uv: pt });
+
+  const n0 = stamped.length;
+  const progBefore = list.map((_, i) => r.regionProgressAt(0, i));
   r.paintAt({ clientX: 50, clientY: 50 });
 
-  assert.equal(stamped.length, stampedBefore, '不应落色到画布');
-  assert.deepEqual(r.coverage[0], before, '进度不应变化');
+  assert.equal(stamped.length, n0, '不应落色到画布');
+  assert.deepEqual(
+    list.map((_, i) => r.regionProgressAt(0, i)),
+    progBefore,
+    '进度不应变化',
+  );
   const off = events.find((e) => e.type === 'off-target');
   assert.ok(off, '应给出提示');
-  assert.ok(off.message.includes('发光'), '提示应引导去发光处');
+  assert.ok(
+    off.message.includes('发光') || off.message.includes('换一种颜色'),
+    '提示应引导去发光处或换色',
+  );
 });
 
-test('涂抹目标处：落色到画布并推进对应色区', () => {
+test('涂抹目标处：落色到画布并推进该区', () => {
   const { r, stamped } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.pickFrom = () => ({ uv: { x: u, y: 0.5 } });
+  const bx = (list[0].u0 + list[0].u1) / 2;
+  const by = (list[0].v0 + list[0].v1) / 2;
+  r.pickFrom = () => ({ uv: { x: bx, y: by } });
   r.paintAt({ clientX: 50, clientY: 50 });
 
-  assert.equal(stamped.length, 1, '应落一笔');
+  assert.ok(stamped.length >= 1, '应落笔');
   const [uv, , index, amount, opts] = stamped[0];
-  assert.ok(uv.x >= list[0].u0 && uv.x <= list[0].u1);
+  assert.ok(uv.x >= list[0].u0 - 1e-9 && uv.x <= list[0].u1 + 1e-9);
+  assert.ok(uv.y >= list[0].v0 - 1e-9 && uv.y <= list[0].v1 + 1e-9);
   assert.ok(index >= 0 && index <= 1);
   assert.ok(amount > 0 && amount <= 1);
-  assert.ok(opts?.radius > 0 && opts?.radius < 0.03, '笔尖应较小，便于细致涂抹');
-  assert.ok(r.regionProgressAt(0, 0) > 0, '应推进对应色区');
+  assert.equal(opts.radius, r.brush, '笔尖半径应取当前笔刷大小');
+  assert.ok(r.regionProgressAt(0, 0) > 0);
+});
+
+test('笔迹连续：一次移动会落多笔，不是散点', () => {
+  const { r, stamped } = makeRestorer();
+  r.setFold(0);
+  const list = FOLD_REGIONS[FOLDS[0].id];
+  r.setPigment(list[0].p);
+  const y = (list[0].v0 + list[0].v1) / 2;
+  r.pickFrom = () => ({ uv: { x: list[0].u0, y } });
+  r.paintAt({ clientX: 50, clientY: 50 });      // 起点
+  r.pickFrom = () => ({ uv: { x: list[0].u1, y } });
+  const n0 = stamped.length;
+  r.paintAt({ clientX: 50, clientY: 50 });      // 跨过整区
+  assert.ok(stamped.length - n0 >= 5, `跨区移动应补足中间笔迹（实落 ${stamped.length - n0} 笔）`);
+});
+
+/* ================= 笔刷大小 ================= */
+
+test('笔刷大小可调，且有上下限', () => {
+  const { r, uniforms, events } = makeRestorer();
+  assert.equal(r.brush, DEFAULT_BRUSH);
+  r.setBrush(BRUSH_MAX * 10);
+  assert.equal(r.brush, BRUSH_MAX, '不应超过上限');
+  r.setBrush(BRUSH_MIN / 10);
+  assert.equal(r.brush, BRUSH_MIN, '不应低于下限');
+  assert.equal(uniforms.uBrushSize.value, r.brush, '应同步到材质');
+  assert.ok(events.some((e) => e.type === 'brush'));
+});
+
+test('笔刷越大，同一笔点亮的格越多', () => {
+  const small = makeRestorer();
+  small.r.setFold(0);
+  const list = FOLD_REGIONS[FOLDS[0].id];
+  small.r.setPigment(list[0].p);
+  small.r.setBrush(BRUSH_MIN);
+  small.r.advanceSegment(0, { x: list[0].u0 + 0.01, y: 0.3 }, { x: list[0].u0 + 0.01, y: 0.3 });
+  const a = small.r.regionProgressAt(0, 0);
+
+  const big = makeRestorer();
+  big.r.setFold(0);
+  big.r.setPigment(list[0].p);
+  big.r.setBrush(BRUSH_MAX);
+  big.r.advanceSegment(0, { x: list[0].u0 + 0.01, y: 0.3 }, { x: list[0].u0 + 0.01, y: 0.3 });
+  const b = big.r.regionProgressAt(0, 0);
+
+  assert.ok(b > a, `大笔刷应涂得更多（小 ${a.toFixed(4)} vs 大 ${b.toFixed(4)}）`);
 });
 
 /* ================= 撤销 ================= */
 
-test('撤销：落笔前留快照，撤销后回退一层且可继续撤销', () => {
+test('撤销：落笔前留快照，撤销后回退且可继续撤销', () => {
   const { r, canvas, events } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.pickFrom = () => ({ uv: { x: u, y: 0.5 } });
+  const y = (list[0].v0 + list[0].v1) / 2;
+  r.pickFrom = () => ({ uv: { x: (list[0].u0 + list[0].u1) / 2, y } });
 
   for (let i = 0; i < 3; i++) {
     r.onDown({ clientX: 50, clientY: 50 });
@@ -377,54 +439,58 @@ test('撤销：落笔前留快照，撤销后回退一层且可继续撤销', ()
   r.undo();
   r.undo();
   assert.equal(r.undoStack.length, 0);
-  assert.equal(r.undo(), false, '没有快照时应返回 false');
-  assert.ok(events.some((e) => e.type === 'undo-empty'), '应提示无可撤销');
+  assert.equal(r.undo(), false);
+  assert.ok(events.some((e) => e.type === 'undo-empty'));
 });
 
-test('撤销栈有上限，不会无限增长', () => {
+test('撤销栈有上限', () => {
   const { r } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.pickFrom = () => ({ uv: { x: u, y: 0.5 } });
-
+  const y = (list[0].v0 + list[0].v1) / 2;
+  r.pickFrom = () => ({ uv: { x: (list[0].u0 + list[0].u1) / 2, y } });
   for (let i = 0; i < 30; i++) {
     r.onDown({ clientX: 50, clientY: 50 });
     r.onUp();
   }
-  assert.equal(r.undoStack.length, 3, `撤销栈应限制在 ${3} 层（实为 ${r.undoStack.length}）`);
+  assert.equal(r.undoStack.length, 3);
 });
 
-test('键盘可独立完成：数字键择色、方括号换折、Z 撤销', () => {
+/* ================= 键盘 ================= */
+
+test('键盘可独立完成：数字键择色、[ ] 调笔刷、Q/E 换折、Z 撤销', () => {
   const { r } = makeRestorer();
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  const u = (list[0].u0 + list[0].u1) / 2;
-  r.pickFrom = () => ({ uv: { x: u, y: 0.5 } });
-
+  const y = (list[0].v0 + list[0].v1) / 2;
+  r.pickFrom = () => ({ uv: { x: (list[0].u0 + list[0].u1) / 2, y } });
   r.onDown({ clientX: 50, clientY: 50 });
   r.onUp();
-  assert.equal(r.undoStack.length, 1, '应留一笔快照');
+  assert.equal(r.undoStack.length, 1);
 
   r.onKey({ key: '2', preventDefault() {} });
   assert.equal(r.pigment, PIGMENTS[1].id);
 
-  r.setFold(1);
+  const b0 = r.brush;
   r.onKey({ key: ']', preventDefault() {} });
-  assert.equal(r.index, 2, '] 应前进一折');
+  assert.ok(r.brush > b0, '] 应放大笔刷');
   r.onKey({ key: '[', preventDefault() {} });
-  assert.equal(r.index, 1, '[ 应后退一折');
+  assert.ok(Math.abs(r.brush - b0) < 1e-9, '[ 应缩小回原值');
 
-  // Z 撤销
+  r.setFold(1);
+  r.onKey({ key: 'e', preventDefault() {} });
+  assert.equal(r.index, 2, 'E 应前进一折');
+  r.onKey({ key: 'q', preventDefault() {} });
+  assert.equal(r.index, 1, 'Q 应后退一折');
+
   r.setFold(0);
-  const before = r.undoStack.length;
+  const depth = r.undoStack.length;
   r.onKey({ key: 'z', preventDefault() {} });
-  assert.equal(r.undoStack.length, before - 1, 'Z 应撤销一层');
+  assert.equal(r.undoStack.length, depth - 1, 'Z 应撤销一层');
 
-  r.setFold(0);
-  assert.doesNotThrow(() => r.onKey({ key: '[', preventDefault() {} }));
+  assert.doesNotThrow(() => r.onKey({ key: 'q', preventDefault() {} }));
   assert.equal(r.index, 0, '第一折不应再后退');
 });
 
@@ -433,34 +499,26 @@ test('完成状态可序列化，便于核验与留档', () => {
   r.setFold(0);
   const list = FOLD_REGIONS[FOLDS[0].id];
   r.setPigment(list[0].p);
-  r.advance((list[0].u0 + list[0].u1) / 2, 0.01);
+  r.advanceSegment(0, { x: list[0].u0 + 0.01, y: 0.3 }, { x: list[0].u0 + 0.02, y: 0.3 });
   const snap = r.snapshot();
   assert.equal(typeof snap.index, 'number');
   assert.equal(snap.progress.length, FOLDS.length);
-  assert.ok(Array.isArray(snap.targets));
+  assert.equal(typeof snap.brush, 'number');
   assert.equal(typeof snap.undoDepth, 'number');
+  assert.ok(Array.isArray(snap.targets));
   assert.ok(JSON.stringify(snap).length > 0);
 });
 
 test('全部进度上传材质，切折后已完成区段保持重彩', () => {
   const { r, uniforms } = makeRestorer();
   for (const [fi, f] of FOLDS.entries()) {
-    r.setFold(fi);
-    for (const [ri, region] of FOLD_REGIONS[f.id].entries()) {
-      r.setPigment(region.p);
-      const width = region.u1 - region.u0;
-      for (let i = 0; i <= 400 && r.regionProgressAt(fi, ri) < 1; i++) {
-        r.advance(region.u0 + (width * i) / 400);
-      }
-    }
+    for (const [ri] of (FOLD_REGIONS[f.id] ?? []).entries()) fillRegion(r, fi, ri);
   }
-  assert.ok(uniforms.uFold0.value >= 1, '第一折进度应写入 uFold0');
-  assert.ok(uniforms.uFold1.value >= 1);
+  assert.ok(uniforms.uFold0.value >= 1);
   assert.ok(uniforms.uFold4.value >= 1);
-
   r.setFold(0);
   assert.ok(uniforms.uFold0.value >= 1, '切折后第一折仍应保持重彩');
-  assert.equal(uniforms.uHoverU0.value, FOLDS[0].u0, '高亮区间应切到本折');
+  assert.equal(uniforms.uHoverU0.value, FOLDS[0].u0);
 });
 
 /* ================= 素材与授权 ================= */

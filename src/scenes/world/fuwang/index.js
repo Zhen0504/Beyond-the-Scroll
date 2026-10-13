@@ -108,11 +108,31 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
 
   restorer.attach(canvas);
   restorer.setFold(0);
-  restorer.setSpeed('gentle');
 
   progress(0.92, '缀节 · 洞窟既成');
   await nextFrame();
   renderer.renderer.compile(scene, camera);
+
+  /**
+   * 笔刷大小：每帧读一次滑杆的值。
+   *
+   * 不挂事件监听 —— React 重渲染会替换 input 节点，监听器随之失效
+   * （曾导致滑杆拖不动）。改为轮询「当前节点」的值，与 React 无关。
+   */
+  let brushSeen = restorer.brush;
+  const syncBrushSlider = () => {
+    const el = document.querySelector('.fuwang__brush input');
+    if (!el) return;
+    const v = Number(el.value);
+    if (!Number.isFinite(v)) return;
+    if (Math.abs(v - brushSeen) > 1e-9) {
+      brushSeen = restorer.setBrush(v);
+    } else if (Math.abs(restorer.brush - brushSeen) > 1e-9) {
+      // 键盘 [ ] 改了笔刷 —— 同步回滑杆，界面与实际一致
+      brushSeen = restorer.brush;
+      el.value = String(brushSeen);
+    }
+  };
 
   let raf = 0;
   let last = performance.now();
@@ -142,6 +162,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     controller.reducedMotion = reducedMotion.matches;
     controller.update(dt);
     if (!paused) restorer.update();
+    syncBrushSlider();
     muralMat.uniforms.uTime.value = atmosphere.uTime.value;
     muralMat.uniforms.uPaint.value = paintCanvas.read;
     renderer.postMaterial.uniforms.uFade.value = controller.fade * controller.fade;
@@ -192,7 +213,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
         hit: hit ? { u: +hit.uv.x.toFixed(4), v: +hit.uv.y.toFixed(4) } : null,
         fold: restorer.index,
         pigment: restorer.pigment,
-        speed: restorer.speed,
+        brush: restorer.brush,
         progress: restorer.progress.map((p) => +p.toFixed(3)),
         uniforms: {
           uHover: muralMat.uniforms.uHover.value,

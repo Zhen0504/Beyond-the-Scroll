@@ -7,7 +7,7 @@ import {
   PlaneGeometry,
   Scene,
   ShaderMaterial,
-  Vector2,
+  Vector4,
   WebGLRenderTarget,
 } from 'three';
 import { ATMOSPHERE_GLSL, NOISE_GLSL } from '../../../engine/shaders/common.glsl.js';
@@ -105,8 +105,11 @@ uniform float uFold1;
 uniform float uFold2;
 uniform float uFold3;
 uniform float uFold4;
-// 当前颜料在本折的目标色区（最多 8 段，x=起点、y=终点，空位为 0,0）
-uniform vec2 uTargets[8];
+// 当前颜料在本折的目标区（最多 16 个矩形）。
+// xy = 矩形中心，zw = 矩形半宽/半高；未使用的槽位为 0。
+uniform vec4 uTargets[16];
+// 当前笔刷大小（uv），供界面显示与着色器圈出笔尖
+uniform float uBrushSize;
 // uTime 由 ATMOSPHERE_GLSL 声明，此处不得重复
 
 varying vec2 vUv;
@@ -198,41 +201,32 @@ void main() {
   float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
   col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
 
-  /* ---- 四、引导：明确告诉观众「这一段该上这种颜色」 ---- */
+  /* ---- 四、引导：明确告诉观众「这一处该上这种颜色」 ---- */
 
   float inFold = step(uHoverU0, uv.x) * step(uv.x, uHoverU1);
   float breath = 0.5 + 0.5 * sin(uTime * 1.1);
 
-  // 目标色区（当前颜料该涂之处）
+  // 目标区：壁画上具体的矩形（对应可辨认的画面内容）
   float target = 0.0;
-  float targetEdge = 0.0;
-  for (int i = 0; i < 8; i++) {
-    float a = uTargets[i].x;
-    float b = uTargets[i].y;
-    if (b > a) {
-      target = max(target, step(a, uv.x) * step(uv.x, b));
-      // 色区两端各留一道描边，便于看清边界
-      float edgeW = 0.0035;
-      float nearA = 1.0 - smoothstep(0.0, edgeW, abs(uv.x - a));
-      float nearB = 1.0 - smoothstep(0.0, edgeW, abs(uv.x - b));
-      targetEdge = max(targetEdge, max(nearA, nearB));
+  for (int i = 0; i < 16; i++) {
+    vec4 t = uTargets[i];
+    if (t.z > 0.0 && t.w > 0.0) {
+      vec2 d = abs(uv - t.xy) - t.zw;
+      target = max(target, 1.0 - step(0.0015, max(d.x, d.y)));
     }
   }
   // 已涂到的地方不再高亮，观众能看到「涂满了没有」
-  float unpainted = 1.0 - smoothstep(0.30, 0.80, paintMask);
+  float unpainted = 1.0 - smoothstep(0.35, 0.85, paintMask);
   target *= unpainted;
-  targetEdge *= unpainted;
 
   // 非目标处压暗，让目标处自然凸显（只在当前折内）
   float dimZone = inFold * (1.0 - target) * uHover;
-  col *= 1.0 - 0.40 * dimZone;
+  col *= 1.0 - 0.38 * dimZone;
 
   // 目标处发出该颜料本身的光 + 呼吸；指针落在目标上时再亮一档
-  vec3 hintColor = normalize(mineral + vec3(0.34));
-  float boost = 1.0 + uOnTarget * 0.5;
-  col += hintColor * target * (0.26 + 0.14 * breath) * uHover * boost;
-  // 色区描边：更亮的一道，帮助看清该涂到哪儿
-  col += hintColor * targetEdge * (0.34 + 0.16 * breath) * uHover * boost;
+  vec3 hintColor = normalize(mineral + vec3(0.16));
+  float boost = 1.0 + uOnTarget * 0.45;
+  col += hintColor * target * (0.24 + 0.12 * breath) * uHover * boost;
 
   gl_FragColor = vec4(applyAtmosphere(col, vWorld), 1.0);
 }
@@ -312,8 +306,9 @@ export function createMuralMaterial({ map, atmosphere }) {
       uHoverU0: { value: 0 },
       uHoverU1: { value: 1 },
       uTargets: {
-        value: Array.from({ length: 8 }, () => new Vector2(0, 0)),
+        value: Array.from({ length: 16 }, () => new Vector4(0, 0, 0, 0)),
       },
+      uBrushSize: { value: 0.003 },
       uFold0: { value: 0 },
       uFold1: { value: 0 },
       uFold2: { value: 0 },
