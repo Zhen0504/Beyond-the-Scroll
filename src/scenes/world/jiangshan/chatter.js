@@ -1,6 +1,7 @@
-import { Vector3 } from 'three';
+import { Vector3, Raycaster } from 'three';
 import { mulberry32 } from '../../../utils/math.js';
 import { DIALOGUE } from './dialogue.js';
+import { createOcclusionGrid } from './occlusionGrid.js';
 
 const TALK_RANGE = 11;   // 走到这个距离内，人物开始说话
 const SHOW_RANGE = 16;   // 超出则气泡隐去
@@ -12,11 +13,23 @@ const lineTime = (text) => 2.6 + text.length * 0.16;
  * 人物闲谈：玩家走近时，在人物头旁显示文字气泡。
  * 对话组按顺序轮流说；独白随机轮换。气泡是叠在画面上的 DOM，每帧按头顶位置投影定位。
  */
-export function createChatter({ npcs, camera, container }) {
+export function createChatter({ npcs, camera, container, scene }) {
   const byId = new Map(npcs.filter((n) => n.def.id).map((n) => [n.def.id, n]));
   const rand = mulberry32(1127);
   const bubbles = new Map();
-  const v = new Vector3();
+  const v = new Vector3(), target=new Vector3(), direction=new Vector3();
+  const ray=new Raycaster(), blockers=[], dynamic=[], visibility=new Map();let clock=0;
+  scene?.traverse(o=>{if(o.isMesh&&!o.userData.isPaintedPerson&&o.material&&!o.material.transparent&&!o.material.alphaTest)(o.parent===scene?blockers:dynamic).push(o);});
+  const occlusion=createOcclusionGrid(blockers);
+  function unobstructed(npc){
+    const previous=visibility.get(npc);if(previous&&clock-previous.time<.14&&camera.position.distanceToSquared(previous.camera)<.0144)return previous.visible;
+    npc.root.getWorldPosition(target);target.y+=npc.headY*.78;
+    const distance=target.distanceTo(camera.position);direction.copy(target).sub(camera.position).normalize();
+    ray.set(camera.position,direction);ray.near=.15;ray.far=Math.max(.15,distance-.07);
+    let visible=!occlusion.blocked(camera.position,target);
+    if(visible&&dynamic.length){dynamic.forEach(m=>m.updateWorldMatrix(true,false));visible=ray.intersectObjects(dynamic,false).length===0;}
+    visibility.set(npc,{time:clock,visible,camera:camera.position.clone()});return visible;
+  }
 
   const bubbleFor = (npc) => {
     let b = bubbles.get(npc);
@@ -50,7 +63,10 @@ export function createChatter({ npcs, camera, container }) {
     return Math.min(...voice.speakers.map((s) => Math.hypot(s.x - p.x, s.z - p.z)));
   };
 
+  let isReading = false;
   function update(dt) {
+    isReading = false;
+    clock+=dt;
     const want = new Map();
     for (const voice of voices) {
       const d = near(voice);
@@ -79,10 +95,11 @@ export function createChatter({ npcs, camera, container }) {
       const text = want.get(npc);
       const b = text ? bubbleFor(npc) : bubbles.get(npc);
       if (!b) continue;
-      let visible = !!text;
+      let visible = !!text && npc.root.visible && (npc.root.userData.paint?.mesh.material.uniforms.uOpacity.value??1)>.2;
+      if(visible){npc.root.getWorldPosition(v);v.y+=npc.headY+.32;v.project(camera);visible=v.z<1&&Math.abs(v.x)<1.1&&Math.abs(v.y)<1.1;}
+      const occluded=visible&&!unobstructed(npc);visible=visible&&!occluded;
+      b.el.style.visibility=text&&!visible?'hidden':'';
       if (visible) {
-        v.set(npc.x, npc.root.position.y + npc.headY + 0.32, npc.z).project(camera);
-        visible = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
         if (visible) {
           const sx = (v.x * 0.5 + 0.5) * w, sy = (1 - (v.y * 0.5 + 0.5)) * h;
           const dist = Math.hypot(npc.x - camera.position.x, npc.z - camera.position.z);
@@ -93,10 +110,10 @@ export function createChatter({ npcs, camera, container }) {
       if (text && text !== b.text) {
         b.text = text;
         b.span.textContent = text;
-        b.el.classList.remove('is-new');
-        void b.el.offsetWidth;
-        b.el.classList.add('is-new');
+        b.span.getAnimations?.().forEach(a=>a.cancel());
+        b.span.animate?.([{opacity:0},{opacity:1}],{duration:260,easing:'ease-out'});
       }
+      if (visible) isReading = true;
       if (visible !== b.shown) {
         b.shown = visible;
         b.el.classList.toggle('is-shown', visible);
@@ -107,7 +124,8 @@ export function createChatter({ npcs, camera, container }) {
   function dispose() {
     for (const b of bubbles.values()) b.el.remove();
     bubbles.clear();
+    occlusion.dispose();
   }
 
-  return { update, dispose };
+  return { update, dispose, occlusion, get isReading() { return isReading; } };
 }

@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, ConeGeometry, CylinderGeometry, ExtrudeGeometry, Mesh, Shape, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, ExtrudeGeometry, IcosahedronGeometry, Mesh, Shape, Vector3, Raycaster } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { MAT, box, createPaintedMaterial, cyl, paint, place } from '../../../engine/painted.js';
 import { mulberry32 } from '../../../utils/math.js';
@@ -241,23 +241,40 @@ function pavilion(size, sunk = 2.2) {
 }
 
 /** 茅舍：石基、木构架、土墙、木门、小窗、厚茅草两坡顶 */
-function hut({ w, d, h = 2.6, roofColor = C.thatch, tile = false }) {
+function hut({ w, d, h = 2.6, roofColor = C.thatch, tile = false, viewRoom = false }) {
   const parts = [box(w + 0.6, 2.5, d + 0.6, C.stoneDark, 0, -2.2, 0, MAT.stone)];
-  parts.push(box(w, h, d, C.earth, 0, 0.3, 0, MAT.plaster));
+  if(!viewRoom)parts.push(box(w, h, d, C.earth, 0, 0.3, 0, MAT.plaster));
+  else {
+    const opening=2.8, sill=.85, lintel=2.38;
+    parts.push(box(w,.12,d,'#5e4936',0,.27,0,MAT.wood));
+    parts.push(box(w,h,.16,C.earth,0,.3,-d/2,MAT.plaster));
+    for(const sign of [-1,1]){
+      parts.push(box(.16,h,d,C.earth,sign*w/2,.3,0,MAT.plaster));
+      parts.push(box((w-opening)/2,h,.16,C.earth,sign*(w+opening)/4,.3,d/2,MAT.plaster));
+      parts.push(box(.10,lintel-sill,.23,C.wood,sign*opening/2,sill,d/2+.055,MAT.wood));
+    }
+    parts.push(box(opening,sill-.3,.16,C.earth,0,.3,d/2,MAT.plaster));
+    parts.push(box(opening,h+.3-lintel,.16,C.earth,0,lintel,d/2,MAT.plaster));
+    for(const yy of [sill-.06,lintel-.045])parts.push(box(opening+.25,.10,.28,C.wood,0,yy,d/2+.055,MAT.wood));
+    // Closed interior bench and work table, visible only through the single window.
+    parts.push(box(2,.12,.6,C.woodLight,0,.65,-.6,MAT.wood));
+    for(const xx of [-.8,.8])parts.push(box(.12,.38,.48,C.wood,xx,.27,-.6,MAT.wood));
+  }
   for (const [x, z] of [[w / 2, d / 2], [-w / 2, d / 2], [w / 2, -d / 2], [-w / 2, -d / 2]]) {
     parts.push(box(0.26, h + 0.1, 0.26, C.wood, x, 0.3, z, MAT.wood));
   }
   // 腰枋与墙裙
   for (const [x, z, sw, sd] of [[0, d / 2, w + 0.1, 0.16], [0, -d / 2, w + 0.1, 0.16], [w / 2, 0, 0.16, d + 0.1], [-w / 2, 0, 0.16, d + 0.1]]) {
-    parts.push(box(sw, 0.16, sd, C.wood, x, 0.3 + h - 0.1, z, MAT.wood));
-    parts.push(box(sw, 0.12, sd, C.wood, x, 0.3 + h * 0.48, z, MAT.wood));
-    parts.push(box(sw - 0.06, 0.6, sd - 0.06 + (sd < 1 ? 0.04 : 0), '#b8a98a', x, 0.3, z, MAT.plaster));
+    const bx=x+(x===0?0:Math.sign(x)*.055),bz=z+(z===0?0:Math.sign(z)*.055);
+    parts.push(box(sw, 0.16, sd, C.wood, bx, 0.3 + h - 0.1, bz, MAT.wood));
+    if(!viewRoom || z!==d/2)parts.push(box(sw, 0.12, sd, C.wood, bx, 0.3 + h * 0.48, bz, MAT.wood));
+    parts.push(box(sw - 0.06, 0.6, sd - 0.06 + (sd < 1 ? 0.04 : 0), '#b8a98a', bx, 0.3, bz, MAT.plaster));
   }
   // 侧墙小窗
-  parts.push(box(0.08, h * 0.26, d * 0.3, C.paper, w / 2 + 0.09, 0.3 + h * 0.56, 0, MAT.lattice));
+  if(!viewRoom)parts.push(box(0.08, h * 0.26, d * 0.3, C.paper, w / 2 + 0.09, 0.3 + h * 0.56, 0, MAT.lattice));
   // 门、窗外表面比墙裙、腰枋再凸出 4 cm 以上，远看也不会与它们争抢深度而闪烁
-  parts.push(box(w * 0.24, h * 0.72, 0.1, C.wood, -w * 0.15, 0.3, d / 2 + 0.08, MAT.wood));
-  parts.push(box(w * 0.22, h * 0.3, 0.08, C.paper, w * 0.22, 0.3 + h * 0.4, d / 2 + 0.09, MAT.lattice));
+  if(!viewRoom)parts.push(box(w * 0.24, h * 0.72, 0.1, C.wood, -w * 0.15, 0.3, d / 2 + 0.08, MAT.wood));
+  if(!viewRoom)parts.push(box(w * 0.22, h * 0.3, 0.08, C.paper, w * 0.22, 0.3 + h * 0.4, d / 2 + 0.09, MAT.lattice));
   const rw = w + 1.6, rd = d + 1.8, rh = d * 0.6;
   const th = tile ? 0.22 : 0.42;
   const shape = new Shape();
@@ -452,7 +469,7 @@ function pavilionColliders(walkMap, x, y, z, size, angle) {
 }
 
 export function createArchitecture({ atmosphere, heightAt, walkMap }) {
-  const parts = [];
+  const parts = [], rooms=[];
   const S = STRUCTURES;
   const boatPosts = [];
   const add = (geo, x, y, z, ry = 0) => parts.push(place(geo, x, y, z, ry));
@@ -581,10 +598,12 @@ export function createArchitecture({ atmosphere, heightAt, walkMap }) {
       geo = hut({ w: 4, d: 3, h: 2.2 });
       hw = 2.6; hd = 2.1;
     } else {
-      geo = hut({ w: 6, d: 4.2, tile: v.x % 3 < 1 });
+      geo = hut({ w: 6, d: 4.2, tile: v.x % 3 < 1, viewRoom: v.x===168 });
       hw = 3.6; hd = 2.7;
     }
-    add(geo, v.x, footY(heightAt, v.x, v.z, hw, hd, v.angle) - 0.05, v.z, v.angle);
+    const foundation=footY(heightAt,v.x,v.z,hw,hd,v.angle)-.05;
+    add(geo,v.x,foundation,v.z,v.angle);
+    if(v.x===168)rooms.push({x:v.x,z:v.z,angle:v.angle,floor:foundation+.39,depth:4.2,windowY:foundation+.85});
     walkMap.addBox(v.x, v.z, hw, hd, -v.angle);
   }
   for (const [x, z] of [[132, 48], [186, 66], [143, 66], [204, 52]]) {
@@ -625,7 +644,7 @@ export function createArchitecture({ atmosphere, heightAt, walkMap }) {
   }
 
   const material = createPaintedMaterial(atmosphere);
-  return { meshes: [new Mesh(mergeGeometries(parts), material)], material, boatPosts };
+  return { meshes: [new Mesh(mergeGeometries(parts), material)], material, boatPosts, rooms };
 }
 
 /**
@@ -634,8 +653,8 @@ export function createArchitecture({ atmosphere, heightAt, walkMap }) {
  *  - 崖顶台地：寻找平缓处布置寺院组群；
  *  - 对岸：江边小村。
  */
-export function createHillBuildings({ material, heightAt, rocks, walkMap }) {
-  const parts = [];
+export function createHillBuildings({ material, heightAt, rocks, walkMap, terrainMeshes=[] }) {
+  const parts = [], viewPaths=[];
   const rand = mulberry32(31337);
   const add = (geo, x, y, z, ry = 0) => parts.push(place(geo, x, y, z, ry));
 
@@ -701,6 +720,53 @@ export function createHillBuildings({ material, heightAt, rocks, walkMap }) {
     add(hall({ w: w - 3, d: 3.8, h: 3, base: 0.3, stories: two ? 2 : 1, sunk: 0 }), c.x, c.y, c.z - 0.6, 0);
   }
 
+  // A visible hillside homestead east of the pagoda, beyond the walkable boundary.
+  const home={x:290,z:122,w:5,d:3.6,angle:Math.PI};
+  const foundation=footY(heightAt,home.x,home.z,2.9,2.25,home.angle)-.05;
+  add(hut({w:home.w,d:home.d,h:2.6,tile:true}),home.x,foundation,home.z,home.angle);
+  walkMap.addBox(home.x,home.z,2.9,2.25,home.angle);
+  const bends=[[290,125],[296,122],[295,115],[289,108],[287,103],[296,104],[308,110],[322,120],[336,132],[335,142],[320,145],[305,140],[292,134]];
+  const loop=new CatmullRomCurve3(bends.map(([x,z])=>new Vector3(x,0,z)),true,'centripetal');
+  const route=loop.getSpacedPoints(180).map(p=>[p.x,p.z]);
+  // Restrict one-time downward sampling to local rock faces: the soil road must
+  // follow visible outcrops as well as the underlying height field.
+  const localFaces=[],v=new Vector3();
+  for(const mesh of [...rocks.meshes,...terrainMeshes]){
+    mesh.updateMatrixWorld(true);
+    const pos=mesh.geometry.attributes.position,ix=mesh.geometry.index;
+    const count=ix?ix.count:pos.count;
+    for(let i=0;i<count;i+=3){
+      const tri=[];
+      for(let j=0;j<3;j++){v.fromBufferAttribute(pos,ix?ix.getX(i+j):i+j).applyMatrix4(mesh.matrixWorld);tri.push(v.x,v.y,v.z);}
+      if(Math.max(tri[0],tri[3],tri[6])<279||Math.min(tri[0],tri[3],tri[6])>340||Math.max(tri[2],tri[5],tri[8])<100||Math.min(tri[2],tri[5],tri[8])>148)continue;
+      localFaces.push(...tri);
+    }
+  }
+  const localGeo=new BufferGeometry();localGeo.setAttribute('position',new BufferAttribute(new Float32Array(localFaces),3));
+  const localRock=new Mesh(localGeo,rocks.meshes[0].material),probe=new Raycaster(),down=new Vector3(0,-1,0),origin=new Vector3();
+  const surfaceAt=(x,z)=>{
+    origin.set(x,400,z);probe.set(origin,down);
+    const hits=probe.intersectObject(localRock,false);
+    return hits.length?hits[0].point.y:heightAt(x,z);
+  };
+  const points=route.map(([x,z])=>[x,z,surfaceAt(x,z)+.10]);
+  // Dirt ribbon follows the actual hillside; no floating posts, remote spiral or extra boulder.
+  const verts=[],indices=[];
+  for(let i=0;i<route.length;i++){
+    const prev=route[i===0?route.length-2:i-1],next=route[i===route.length-1?1:i+1];
+    const dx=next[0]-prev[0],dz=next[1]-prev[1],len=Math.hypot(dx,dz),nx=-dz/len*.8,nz=dx/len*.8;
+    for(const side of [-1,1]){
+      const x=route[i][0]+nx*side,z=route[i][1]+nz*side;verts.push(x,surfaceAt(x,z)+.075,z);
+    }
+    if(i<route.length-1){
+      const first=i*2;indices.push(first,first+2,first+1,first+1,first+2,first+3);
+      const a=route[i],b=route[i+1],sx=b[0]-a[0],sz=b[1]-a[1];
+      walkMap.addBox((a[0]+b[0])/2,(a[1]+b[1])/2,Math.hypot(sx,sz)/2+.2,1,Math.atan2(sz,sx));
+    }
+  }
+  const road=new BufferGeometry();road.setAttribute('position',new BufferAttribute(new Float32Array(verts),3));road.setIndex(indices);road.computeVertexNormals();parts.push(paint(road,'#b29a72',MAT.plaster));localGeo.dispose();
+  viewPaths.push({points,closed:true,facing:Math.PI,home:{...home,y:foundation},remote:true});
+
   // 崖顶台地寺院（取靠近崖边、从谷中能望见的平缓处）
   const spots = [];
   for (let x = -250; x <= 225; x += 7) {
@@ -731,5 +797,5 @@ export function createHillBuildings({ material, heightAt, rocks, walkMap }) {
     huts++;
   }
 
-  return { meshes: parts.length ? [new Mesh(mergeGeometries(parts), material)] : [], peaks: chosen.length, cliffs: Math.min(8, cliffs.length), spots: Math.min(6, spots.length) };
+  return { meshes: parts.length ? [new Mesh(mergeGeometries(parts), material)] : [], viewPaths, peaks: chosen.length, cliffs: Math.min(8, cliffs.length), spots: Math.min(6, spots.length) };
 }

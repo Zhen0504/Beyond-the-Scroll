@@ -4,6 +4,7 @@ import { buildHanxizaiWorld } from './hanxizai/index.js';
 import { buildFuwangWorld } from './fuwang/index.js';
 import ScrollGuide from './hanxizai/ScrollGuide.jsx';
 import FuwangGuide from './fuwang/FuwangGuide.jsx';
+import RegionMusicControl from './jiangshan/RegionMusicControl.jsx';
 import './hanxizai/ScrollGuide.css';
 import './WorldScene.css';
 import './fuwang/Fuwang.css';
@@ -18,10 +19,11 @@ const JIANGSHAN_KEYS = [
 ];
 
 const FUWANG_KEYS = [
-  ['拖拽', '为壁画敷彩'],
   ['1—4', '择矿物色'],
-  ['[ ] 或 Q E', '换折'],
-  ['F', '切换速成 / 全手作'],
+  ['点击', '为发亮的形体敷彩'],
+  ['[ ]', '换折'],
+  ['Z', '撤销'],
+  ['L', '读释文'],
   ['Esc', '暂停'],
 ];
 
@@ -113,7 +115,10 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
     };
   }, [def]);
 
-  const enter = () => worldRef.current?.controller.lock();
+  const enter = () => {
+    worldRef.current?.music?.unlock();
+    worldRef.current?.controller.lock();
+  };
 
   const exit = () => {
     worldRef.current?.controller.unlock();
@@ -173,6 +178,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
                 <li key={k}><kbd>{k}</kbd>{label}</li>
               ))}
             </ul>
+            {worldRef.current?.music && <RegionMusicControl music={worldRef.current.music} />}
             <div className="world__actions">
               <button type="button" className="seal-btn" onClick={enter}>
                 {status === 'ready' ? '入画' : '续游'}

@@ -8,6 +8,7 @@ import PaintingIntro from './components/PaintingIntro/PaintingIntro.jsx';
 import { closedScrollWidth } from './layout.js';
 import { closeScroll, nudgeLocked, openScroll, playIntro, relayoutOpen } from './timelines.js';
 import './EntryScene.css';
+import { ScrollSound } from './ScrollSound.js';
 
 /**
  * 卷轴入口场景。
@@ -26,8 +27,16 @@ export default function EntryScene({ onEnterWorld }) {
   const slotRefs = useRef([]);
   const scrollRefs = useRef([]);
   const closingRef = useRef(false);
+  const soundRef = useRef(null);
 
   const busy = phase !== 'idle';
+
+  useEffect(() => {
+    const sound = new ScrollSound();
+    soundRef.current = sound;
+    if (import.meta.env.DEV) window.__scrollSound = sound;
+    return () => { sound.dispose(); if (soundRef.current === sound) soundRef.current = null; };
+  }, []);
 
   // 入场动画
   useLayoutEffect(() => {
@@ -53,6 +62,7 @@ export default function EntryScene({ onEnterWorld }) {
     dim: dimRef.current,
     stage: stageRef.current,
     dust: dustRef.current,
+    sound: soundRef.current,
   });
 
   const handleSelect = useCallback(
@@ -63,6 +73,7 @@ export default function EntryScene({ onEnterWorld }) {
         nudgeLocked(scrollRefs.current[index]);
         return;
       }
+      soundRef.current?.unlock();
       setActive(index);
       setPhase('opening');
       openScroll(timelineArgs(index)).eventCallback('onComplete', () => setPhase('open'));
@@ -72,6 +83,7 @@ export default function EntryScene({ onEnterWorld }) {
 
   const handleClose = useCallback(async () => {
     if (phase !== 'open' || closingRef.current) return;
+    soundRef.current?.unlock();
     closingRef.current = true;
     await introRef.current?.hide();
     setPhase('closing');

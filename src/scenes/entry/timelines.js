@@ -51,9 +51,10 @@ export function playIntro({ scene, scrolls }) {
 /* ------------------------------------------------------------------ */
 /* 展卷                                                                 */
 /* ------------------------------------------------------------------ */
-export function openScroll({ target, targetSlot, others, dim, stage, dust }) {
+export function openScroll({ target, targetSlot, others, dim, stage, dust, sound }) {
   const rig = target.rig;
   const s = rig.state;
+  sound?.begin(s);
   const layout = openScrollLayout(rig.phRatio);
   const base = rootBase(target.root, stage);
   const slotLights = targetSlot.querySelectorAll('.slot__beam, .slot__glow');
@@ -75,9 +76,11 @@ export function openScroll({ target, targetSlot, others, dim, stage, dust }) {
   };
 
   const tl = gsap.timeline({
+    onInterrupt: () => sound?.stop(true),
     onUpdate: () => {
       rig.render();
       emitDust();
+      sound?.update(s);
     },
   });
 
@@ -128,15 +131,18 @@ export function openScroll({ target, targetSlot, others, dim, stage, dust }) {
   tl.to(target.root, { x: layout.side.x - base.x, y: layout.side.y - base.y, duration: 1.3, ease: 'power3.inOut' }, 'unroll+=3.6')
     .to(s, { w: layout.side.w, duration: 1.3, ease: 'power3.inOut' }, 'unroll+=3.6');
 
+  tl.call(() => sound?.tap(), null, 'unroll+=2.95');
+  tl.call(() => sound?.stop());
   return tl.timeScale(speed());
 }
 
 /* ------------------------------------------------------------------ */
 /* 收卷：展卷的逆过程，最后回到原位继续悬挂                              */
 /* ------------------------------------------------------------------ */
-export function closeScroll({ target, targetSlot, others, dim, stage, dust, closedWidth }) {
+export function closeScroll({ target, targetSlot, others, dim, stage, dust, sound, closedWidth }) {
   const rig = target.rig;
   const s = rig.state;
+  sound?.begin(s);
   const layout = openScrollLayout(rig.phRatio);
   const base = rootBase(target.root, stage);
   const slotLights = targetSlot.querySelectorAll('.slot__beam, .slot__glow');
@@ -153,13 +159,11 @@ export function closeScroll({ target, targetSlot, others, dim, stage, dust, clos
   };
 
   const tl = gsap.timeline({
+    onInterrupt: () => sound?.stop(true),
     onUpdate: () => {
       rig.render();
       emitDust();
-    },
-    onComplete: () => {
-      rig.detached = false;
-      target.startSway();
+      sound?.update(s);
     },
   });
 
@@ -180,6 +184,9 @@ export function closeScroll({ target, targetSlot, others, dim, stage, dust, clos
     .set(others, { clearProps: 'filter,opacity,transform' })
     .set([target.hint, sceneHint, ...slotLights], { clearProps: 'opacity' });
 
+  tl.call(() => sound?.tap(), null, 3.2);
+  tl.call(() => { rig.detached = false; target.startSway(); });
+  tl.call(() => sound?.stop());
   return tl.timeScale(speed());
 }
 

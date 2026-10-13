@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, Group, Mesh, Vector3 } from 'three';
+import { BoxGeometry, CylinderGeometry, Group, Mesh, Vector3, BufferGeometry, CircleGeometry, Line, LineBasicMaterial } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { MAT, box, paint } from '../../../engine/painted.js';
 import { mulberry32 } from '../../../utils/math.js';
@@ -28,7 +28,7 @@ function hullGeometry() {
   return paint(g, HULL, MAT.wood);
 }
 
-function boatGeometry(canopy) {
+function boatGeometry(canopy, fisher=false) {
   const parts = [hullGeometry()];
   // 船舷
   for (const s of [-1, 1]) {
@@ -56,11 +56,17 @@ function boatGeometry(canopy) {
   if (canopy) {
     const c = new CylinderGeometry(0.82, 0.82, 2.3, 12, 1, true, 0, Math.PI);
     c.rotateZ(Math.PI / 2);
+    if(fisher)c.scale(1,1.65,1);
     c.translate(0.55, -0.02, 0);
     parts.push(paint(c, '#9c8456', MAT.thatch));
+    if(fisher){
+      // Close the far end: the seated figure is visible only from the front canopy opening.
+      const back=new CircleGeometry(.83,24,0,Math.PI);back.rotateY(Math.PI/2);back.scale(1,1.65,1);back.translate(1.7,-.02,0);parts.push(paint(back,'#9c8456',MAT.thatch));
+    }
     for (const x of [-0.55, 1.65]) {
       const r = new CylinderGeometry(0.85, 0.85, 0.08, 12, 1, true, 0, Math.PI);
       r.rotateZ(Math.PI / 2);
+      if(fisher)r.scale(1,1.65,1);
       r.translate(x, -0.02, 0);
       parts.push(paint(r, '#6b5638', MAT.wood));
     }
@@ -81,7 +87,7 @@ function oarGeometry() {
 }
 
 class Boat {
-  constructor({ material, x, z, angle, canopy, heightAt, walkMap, oars = true }) {
+  constructor({ material, x, z, angle, canopy, heightAt, walkMap, oars = true, fisher=false }) {
     this.x = x;
     this.z = z;
     this.heading = angle;
@@ -96,7 +102,7 @@ class Boat {
 
     this.group = new Group();
     this.group.rotation.order = 'YXZ';
-    this.group.add(new Mesh(boatGeometry(canopy), material));
+    this.group.add(new Mesh(boatGeometry(canopy,fisher), material));
     this.oars = [];
     if (oars) {
       const og = oarGeometry();
@@ -202,23 +208,30 @@ class Boat {
 
 export function createBoats({ material, heightAt, walkMap, makePerson }) {
   const rand = mulberry32(512);
+  const npcs=[];
   const boats = STRUCTURES.boats.map((b) => {
     const boat = new Boat({ material, ...b, heightAt, walkMap, oars: !b.fisher });
     if (b.fisher && makePerson) {
       const m = makePerson('fisher', 'sit');
-      m.position.set(2.0, 0.12, 0);
-      m.rotation.y = Math.PI / 2 + (rand() - 0.5) * 0.4;
+      m.position.set(.35,.12,0);
+      m.rotation.y=-Math.PI/2;
       boat.group.add(m);
       boat.npc = true;
+      const rod=new BufferGeometry().setFromPoints([new Vector3(-.48,.50,0),new Vector3(-2.6,1.05,.07)]);
+      const fishingLine=new BufferGeometry().setFromPoints([new Vector3(-2.6,1.05,.07),new Vector3(-2.6,-.1,.07)]);
+      boat.group.add(new Line(rod,new LineBasicMaterial({color:'#665238'})),new Line(fishingLine,new LineBasicMaterial({color:'#988876',transparent:true,opacity:.65})));
+      if(b.npcId)npcs.push({def:{id:b.npcId,kind:'fisher'},root:m,boat,x:b.x,z:b.z,headY:m.userData.headY});
+
     }
     return boat;
   });
   for (const b of boats) b.others = boats;
   return {
-    boats,
+    boats, npcs,
     group: boats.reduce((g, b) => (g.add(b.group), g), new Group()),
     update(dt, active) {
       for (const b of boats) if (b !== active) b.update(dt, null);
+      for(const n of npcs){const p=n.root.getWorldPosition(new Vector3());n.x=p.x;n.z=p.z;}
     },
     /** 离玩家最近、可登的船 */
     nearest(x, z, maxD = 7) {

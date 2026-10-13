@@ -14,6 +14,8 @@ import { createNoise } from '../../../engine/noise.js';
 import { ATMOSPHERE_GLSL, NOISE_GLSL } from '../../../engine/shaders/common.glsl.js';
 import { MAIN_PATH, NORTH_PATH, NORTH_WALL, RIVER, SOUTH_WALL, LAKE_NORTH_PATH, STREAMS, STRUCTURES } from './layout.js';
 
+import { applyCliffRelief } from './cliffRelief.js';
+
 const noise = createNoise(7);
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -253,7 +255,7 @@ export function walkSlopeHeight(x, z) {
 /* ------------------------------------------------------------------ */
 /* 地形网格                                                            */
 /* ------------------------------------------------------------------ */
-export const INNER = { minX: -340, maxX: 300, minZ: -230, maxZ: 210, step: 1.25 };
+export const INNER = { minX: -340, maxX: 380, minZ: -230, maxZ: 210, step: 1.25 };
 
 function gridMesh(minX, maxX, minZ, maxZ, step, heightFn) {
   const w = maxX - minX, d = maxZ - minZ;
@@ -449,7 +451,9 @@ export function createTerrain({ atmosphere, brushTexture }) {
     },
   });
 
-  const inner = new Mesh(gridMesh(INNER.minX, INNER.maxX, INNER.minZ, INNER.maxZ, INNER.step, heightAt), material);
+  const innerGeometry = gridMesh(INNER.minX, INNER.maxX, INNER.minZ, INNER.maxZ, INNER.step, heightAt);
+  applyCliffRelief(innerGeometry);
+  const inner = new Mesh(innerGeometry, material);
 
   // 外圈低精度地形（顶点间距 26 m）：内圈深处整片沉到地下，
   // 否则它的大三角面会在陡崖附近插值到地面以上，盖住溪涧、湖岸，形成直边的“尖锥”。

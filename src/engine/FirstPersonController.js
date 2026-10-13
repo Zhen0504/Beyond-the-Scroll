@@ -42,6 +42,7 @@ export class FirstPersonController {
 
     this._onKeyDown = (e) => {
       if (!this.locked) return;
+      if (e.code === 'Escape') { this.unlock(); return; }
       this.keys.add(e.code);
       if (e.code === 'Space' && !e.repeat) this._jump();
       if (e.code === 'KeyE' && !e.repeat) this.onInteract?.();

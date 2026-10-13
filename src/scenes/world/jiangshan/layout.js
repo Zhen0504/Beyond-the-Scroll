@@ -120,7 +120,8 @@ export const STRUCTURES = {
     { x: 151, z: 5, angle: 1.2, canopy: true },
     { x: 166, z: 4, angle: 1.6, canopy: false },
     { x: 240, z: -20, angle: 0.4, canopy: true, fisher: true },
-    { x: 290, z: 40, angle: 2.2, canopy: false, fisher: true },
+    { x: 290, z: 40, angle: 2.2, canopy: true, fisher: true },
+    { x: 180, z: -24, angle: Math.PI/2, canopy: true, fisher: true, npcId: 'angler' },
   ],
   waterfalls: [
     { x: -30, z: -82, top: 30, width: 4.6 },
@@ -143,6 +144,7 @@ export const FIGURES = [
   { id: 'poetB', kind: 'scholar', pose: 'sit', x: -58.6, z: 4.6, face: Math.PI * 0.85 },
   { id: 'farmer', kind: 'villager', route: [[-44, 4], [-20, 2], [2, -3], [12, -1], [24, -6], [30, -15]], speed: 0.9 },
   { id: 'terraceScholar', kind: 'scholar', x: 98.5, z: -57.4, face: Math.PI * 0.95 },
+  { id: 'terraceCompanion', kind: 'scholar', x: 101.1, z: -57.7, face: Math.PI },
   { id: 'monk', kind: 'monk', x: -150, z: -71, face: 0 },
   // 江村：挑担、垂钓、两位村妇闲话
   { id: 'peddler', kind: 'porter', route: [[96, 6], [116, 14], [138, 24], [160, 30], [182, 36], [204, 46]], speed: 0.9, delay: 4 },
