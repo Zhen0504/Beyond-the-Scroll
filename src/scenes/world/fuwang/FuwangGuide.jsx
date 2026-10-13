@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { PIGMENTS } from './layout.js';
-import { FOLD_REGIONS } from './regions.js';
-import { DEFAULT_BRUSH, BRUSH_MIN, BRUSH_MAX, pigmentName } from './restore.js';
+import { MASK_SLOTS, foldShapes } from './shapes.js';
+import { pigmentName } from './restore.js';
 
 /**
  * 卷三导览。
@@ -52,28 +52,26 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
       hintTimer.current = setTimeout(() => setHint(null), ms);
     };
     switch (paintEvent.type) {
-      case 'off-target':
-        show(paintEvent.message ?? '这一处不需要这种颜色 —— 请涂在发光的地方。', 'nudge', 4000);
-        break;
-      case 'idle-hint':
-        show(
-          paintEvent.targets?.length
-            ? `发光处就是要涂的地方 —— 用${pigmentName(pigment)}涂满它们。`
-            : `本折不用${pigmentName(pigment)}，换一种颜色试试。`,
-          'guide',
-          6500,
-        );
-        break;
-      case 'region-done':
-        show(`${paintEvent.region?.what ?? '这一段'}已足色 —— 继续涂其余发光处。`, 'done', 3200);
+      case 'shape-done':
+        show(`${paintEvent.shape?.what ?? '这一处'}已敷彩。`, 'done', 2600);
         break;
       case 'fold-done':
         show('本折已足色 —— 可换下一折。', 'done', 4200);
         break;
-      case 'undo':
+      case 'already':
+        show(`${paintEvent.shape?.what ?? '这一处'}已经敷过彩了。`, 'guide', 2400);
+        break;
+      case 'idle-hint':
+        show(
+          paintEvent.targets?.length
+            ? `点亮的地方就是要敷彩的形体 —— 用${pigmentName(pigment)}点它们。`
+            : `本折不用${pigmentName(pigment)} —— 换一种颜色试试。`,
+          'guide',
+          6500,
+        );
         break;
       case 'undo-empty':
-        show('没有可撤销的笔触了。', 'nudge', 2500);
+        show('没有可撤销的敷彩了。', 'nudge', 2400);
         break;
       case 'all-done':
         setHint(null);
@@ -91,20 +89,15 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     setUndoDepth(restorer?.undoStack?.length ?? 0);
   }, [restorer]);
 
-  // 笔刷滑杆：非受控控件，用 ref 在挂载后直接绑原生监听。
-  // 依赖 world/restorer —— 场景是异步建好的，首次渲染时 restorer 还不存在。
-  const brushRef = useRef(null);
+  // 敷彩状态是命令式对象（restorer.filled），用定时器把变化带进渲染
   useEffect(() => {
-    const el = brushRef.current;
-    if (!el || !restorer) return undefined;
-    el.value = String(restorer.brush);
-    const apply = () => restorer.setBrush(Number(el.value));
-    el.addEventListener('input', apply);
-    el.addEventListener('change', apply);
-    return () => {
-      el.removeEventListener('input', apply);
-      el.removeEventListener('change', apply);
-    };
+    if (!restorer) return undefined;
+    const id = setInterval(() => {
+      setTick((t) => t + 1);
+      setUndoDepth(restorer.undoStack?.length ?? 0);
+    }, 200);
+    restorer.setPigment(restorer.pigment);
+    return () => clearInterval(id);
   }, [restorer]);
 
   const selectPigment = useCallback(
@@ -135,13 +128,11 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const pct = foldProgress <= 0 ? 0 : foldProgress < 0.01 ? '<1' : Math.round(foldProgress * 100);
 
   const currentPigment = PIGMENTS.find((p) => p.id === pigment) ?? PIGMENTS[0];
-  // 本折用当前颜料的目标色区。直接读 restorer，避免与快照时机不一致。
-  const regionList = FOLD_REGIONS[chapter.id] ?? [];
-  const targets = regionList.filter((r) => r.p === pigment);
-  const regionDone = (r) => {
-    const i = regionList.indexOf(r);
-    return i >= 0 && (restorer?.regionProgressAt?.(state.chapter, i) ?? 0) >= 1;
-  };
+  // 本折的形体清单（由壁画裁出的蒙版定义）
+  const shapeList = foldShapes(chapter.id);
+  const targets = shapeList.filter((s) => s.p === pigment);
+  const pendingTargets = targets.filter((s) => !restorer?.isFilled?.(s.id));
+  const shapeDone = (s) => !!restorer?.isFilled?.(s.id);
   // tick 由订阅定时器驱动：敷彩进度是命令式对象，需要它把变化带进渲染
   void tick;
 
@@ -274,22 +265,10 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
 
             <div className="fuwang__tools">
-              <label className="fuwang__brush" title="笔刷大小（[ ] 也可调整）">
-                <span>笔刷</span>
-                <input
-                  ref={brushRef}
-                  type="range"
-                  min={BRUSH_MIN}
-                  max={BRUSH_MAX}
-                  step="0.0002"
-                  defaultValue={DEFAULT_BRUSH}
-                  aria-label="笔刷大小"
-                />
-              </label>
               <button
                 onClick={doUndo}
                 disabled={undoDepth === 0}
-                aria-label={`撤销上一笔，可撤销 ${undoDepth} 步`}
+                aria-label={`撤销上一处敷彩，可撤销 ${undoDepth} 步`}
               >
                 撤销 <kbd>Z</kbd>
                 {undoDepth > 0 && <i className="fuwang__undoCount">{undoDepth}</i>}
@@ -300,18 +279,22 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
           </div>
 
-          {/* 该涂哪里：直接列出本折用当前颜料的目标色区 */}
+          {/* 该敷哪里：直接列出本折用当前颜料的形体 */}
           {!foldDone && (
             <p className="fuwang__targetsline" role="status">
-              {targets.length ? (
+              {pendingTargets.length ? (
                 <>
                   <b style={{ '--swatch': currentPigment.hex }} />
                   <span>
-                    用<b>{currentPigment.name}</b>涂发光处：
-                    {targets.map((r) => r.what).join(' · ')}
+                    点亮处是要敷彩的形体，用<b>{currentPigment.name}</b>点它们：
+                    {pendingTargets.map((s) => s.what).join(' · ')}
                   </span>
-                  <em>还剩 {targets.filter((r) => !regionDone(r)).length} 处</em>
+                  <em>还剩 {pendingTargets.length} 处</em>
                 </>
+              ) : targets.length ? (
+                <span>
+                  {currentPigment.name}的 {targets.length} 处都已敷彩 —— 换一种颜色
+                </span>
               ) : (
                 <span>本折不用{currentPigment.name} —— 换一种颜色</span>
               )}

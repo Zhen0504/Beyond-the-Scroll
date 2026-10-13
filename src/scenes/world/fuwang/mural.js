@@ -7,6 +7,7 @@ import {
   PlaneGeometry,
   Scene,
   ShaderMaterial,
+  Vector2,
   Vector4,
   WebGLRenderTarget,
 } from 'three';
@@ -105,19 +106,28 @@ uniform float uFold1;
 uniform float uFold2;
 uniform float uFold3;
 uniform float uFold4;
-// 当前颜料在本折的目标区（最多 16 个矩形）。
-// xy = 矩形中心，zw = 矩形半宽/半高；未使用的槽位为 0。
-uniform vec4 uTargets[16];
+// 当前折各形体的蒙版槽位。
+// xy = 该形体包围盒的左下角，zw = 包围盒尺寸（壁画 uv）
+uniform vec4 uShapeBounds[8];
+uniform float uShapeSlot[8];
+// 该形体是否已敷彩（1 = 已上色，不再高亮）
+uniform float uShapeDone[8];
+// 形体蒙版图集（宽 = 槽位数 × 128，高 = 64）
+uniform sampler2D uMasks;
+uniform vec2 uMaskGrid;      // 单个槽位在整张图集 uv 上所占比例
+uniform vec2 uMaskPad;       // 槽内留边（占槽位比例）
+uniform vec2 uMaskData;      // 数据区（占槽位比例）
 // 当前笔刷大小（uv），供界面显示与着色器圈出笔尖
 uniform float uBrushSize;
+// 调试：>0.5 时只输出高亮蒙版（用于核对轮廓）
+uniform float uDebugMask;
 // uTime 由 ATMOSPHERE_GLSL 声明，此处不得重复
 
 varying vec2 vUv;
 varying vec3 vWorld;
 varying vec3 vNormal;
 
-/** 蛤白（铅白）的偏暖白，是北魏壁画提亮人物的主要用色 */
-const vec3 HAIBAI = vec3(0.902, 0.878, 0.796);
+/** 蛤白（铅白）的偏暖白，是北魏壁画提亮人物的主要用色 */const vec3 HAIBAI = vec3(0.902, 0.878, 0.796);
 
 void main() {
   vec2 uv = vUv;
@@ -201,32 +211,44 @@ void main() {
   float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
   col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
 
-  /* ---- 四、引导：明确告诉观众「这一处该上这种颜色」 ---- */
+  /* ---- 四、引导：把「这一处该上这种颜色」的形体轮廓点亮 ---- */
 
   float inFold = step(uHoverU0, uv.x) * step(uv.x, uHoverU1);
   float breath = 0.5 + 0.5 * sin(uTime * 1.1);
 
-  // 目标区：壁画上具体的矩形（对应可辨认的画面内容）
+  // 逐个形体取蒙版：得到的是该形体的**真实轮廓**，不是矩形
   float target = 0.0;
-  for (int i = 0; i < 16; i++) {
-    vec4 t = uTargets[i];
-    if (t.z > 0.0 && t.w > 0.0) {
-      vec2 d = abs(uv - t.xy) - t.zw;
-      target = max(target, 1.0 - step(0.0015, max(d.x, d.y)));
-    }
+  float rim = 0.0;
+  for (int i = 0; i < 8; i++) {
+    if (uShapeDone[i] > 0.5) continue;              // 已敷彩的不再高亮
+    vec4 b = uShapeBounds[i];
+    if (b.z <= 0.0 || b.w <= 0.0) continue;
+    // 落到该形体包围盒内才取蒙版（省采样，也避免串槽）
+    vec2 local = (uv - b.xy) / b.zw;
+    if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) continue;
+    // 槽位两侧留了黑边，取样要落在数据区内 —— 否则相邻槽位会串色
+    vec2 c = uMaskPad + local * uMaskData;
+    vec2 muv = vec2((uShapeSlot[i] + c.x) * uMaskGrid.x, c.y * uMaskGrid.y);
+    float m = texture2D(uMasks, muv).r;
+    target = max(target, m);
+    // 轮廓描边：蒙版边缘一圈，帮助看清「该敷的是这一块」
+    rim = max(rim, smoothstep(0.10, 0.45, m) * (1.0 - smoothstep(0.55, 0.92, m)));
   }
-  // 已涂到的地方不再高亮，观众能看到「涂满了没有」
-  float unpainted = 1.0 - smoothstep(0.35, 0.85, paintMask);
-  target *= unpainted;
+  target = smoothstep(0.25, 0.75, target);
+  rim = smoothstep(0.15, 0.85, rim) * (1.0 - target * 0.55);
 
-  // 非目标处压暗，让目标处自然凸显（只在当前折内）
+  // 非目标处压暗，让目标轮廓自然凸显（只在当前折内）。
+  // 靠「压暗周围」比「提亮目标」更有效 —— 壁画里的白鹿本身已接近饱和，
+  // 再加光看不出变化；把周围压下去、目标处罩上该颜料的色，对比就出来了。
   float dimZone = inFold * (1.0 - target) * uHover;
-  col *= 1.0 - 0.38 * dimZone;
+  col *= 1.0 - 0.70 * dimZone;
 
-  // 目标处发出该颜料本身的光 + 呼吸；指针落在目标上时再亮一档
+  // 目标处：蒙上一层该颜料的颜色，明确「这一块要用这个色」
   vec3 hintColor = normalize(mineral + vec3(0.16));
-  float boost = 1.0 + uOnTarget * 0.45;
-  col += hintColor * target * (0.24 + 0.12 * breath) * uHover * boost;
+  float wash = (0.42 + 0.10 * breath) * uHover * (1.0 + uOnTarget * 0.28);
+  col = mix(col, mix(col, hintColor, 0.55) * 1.06, target * wash);
+  // 沿轮廓加一道更亮的边，形体形状因此一目了然
+  col += hintColor * rim * (0.50 + 0.20 * breath) * uHover;
 
   gl_FragColor = vec4(applyAtmosphere(col, vWorld), 1.0);
 }
@@ -286,6 +308,54 @@ void main() {
 }
 `;
 
+const FILL_FRAG = /* glsl */ `
+${FBM_GLSL}
+
+uniform sampler2D uMasks;   // 形体蒙版图集
+uniform sampler2D uPrev;    // 已有的累积贴图
+uniform vec2 uMaskGrid;     // 单个蒙版槽位在图集 uv 上所占比例
+uniform vec2 uMaskPad;      // 槽内留边（占槽位比例）
+uniform vec2 uMaskData;     // 数据区（占槽位比例）
+uniform float uAxisX;       // 1 = 本趟沿 u 轴，0 = 沿 v 轴
+uniform vec4 uBox;          // 该形体的包围盒（壁画 uv）
+uniform float uSlot;        // 该形体在图集中的槽位号
+uniform float uIndex;       // 颜料序号
+
+varying vec2 vUv;
+
+void main() {
+  // vUv 扫过整张贴图；沿哪个轴画由 uAxisX 决定
+  vec2 uv;
+  if (uAxisX > 0.5) {
+    uv = vec2(mix(uBox.x, uBox.z, vUv.x), mix(uBox.y, uBox.w, vUv.y));
+  } else {
+    uv = vec2(mix(uBox.x, uBox.z, vUv.y), mix(uBox.y, uBox.w, vUv.x));
+  }
+
+  vec4 prev = texture2D(uPrev, vUv);
+
+  vec2 local = (uv - uBox.xy) / max(uBox.zw, vec2(1e-6));
+  if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
+    gl_FragColor = prev;
+    return;
+  }
+  vec2 c = uMaskPad + local * uMaskData;
+  vec2 muv = vec2((uSlot + c.x) * uMaskGrid.x, c.y * uMaskGrid.y);
+  float m = smoothstep(0.30, 0.70, texture2D(uMasks, muv).r);
+  if (m <= 0.001) {
+    gl_FragColor = prev;
+    return;
+  }
+
+  // 矿物颗粒，让整块色不至于死平
+  float grain = fuwangFbm(uv * vec2(560.0, 210.0) + uSlot * 7.0, 3);
+  float cover = clamp(m * (0.86 + grain * 0.26), 0.0, 1.0);
+
+  // 两趟取 max：交界处不出现接缝，也不覆盖更早敷上的形体
+  gl_FragColor = vec4(max(prev.r, cover), max(prev.g, uIndex), 0.0, 1.0);
+}
+`;
+
 /* ------------------------------------------------------------------ *
  *  对外接口
  * ------------------------------------------------------------------ */
@@ -305,10 +375,17 @@ export function createMuralMaterial({ map, atmosphere }) {
       uOnTarget: { value: 0 },
       uHoverU0: { value: 0 },
       uHoverU1: { value: 1 },
-      uTargets: {
-        value: Array.from({ length: 16 }, () => new Vector4(0, 0, 0, 0)),
+      uShapeBounds: {
+        value: Array.from({ length: 8 }, () => new Vector4(0, 0, 0, 0)),
       },
+      uShapeSlot: { value: new Float32Array(8) },
+      uShapeDone: { value: new Float32Array(8) },
+      uMasks: { value: null },
+      uMaskGrid: { value: new Vector2(1 / 24, 1) },
+      uMaskPad: { value: new Vector2(4 / 128, 4 / 64) },
+      uMaskData: { value: new Vector2(120 / 128, 56 / 64) },
       uBrushSize: { value: 0.003 },
+      uDebugMask: { value: 0 },
       uFold0: { value: 0 },
       uFold1: { value: 0 },
       uFold2: { value: 0 },
@@ -376,7 +453,34 @@ export class PaintCanvas {
     this.copyScene = new Scene();
     this.copyScene.add(new Mesh(new PlaneGeometry(2, 2), this.copyMaterial));
 
+    // 认形敷彩用的着色器（把形体蒙版整块写进累积贴图）
+    this.fillMaterial = new ShaderMaterial({
+      vertexShader: STAMP_VERT,
+      fragmentShader: FILL_FRAG,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uMasks: { value: null },
+        uMaskGrid: { value: new Vector2(1 / 24, 1) },
+        uMaskPad: { value: new Vector2(4 / 128, 4 / 64) },
+        uMaskData: { value: new Vector2(120 / 128, 56 / 64) },
+        uAxisX: { value: 1 },
+        uBox: { value: new Vector4(0, 0, 1, 1) },
+        uSlot: { value: 0 },
+        uIndex: { value: 0 },
+      },
+    });
+    this.fillScene = new Scene();
+    this.fillScene.add(new Mesh(new PlaneGeometry(2, 2), this.fillMaterial));
+
     this.clear();
+  }
+
+  /** 蒙版图集：认形敷彩的依据 */
+  setMaskAtlas(texture, slots) {
+    this.maskTexture = texture;
+    this.maskSlots = slots ?? 24;
+    return this;
   }
 
   get read() {
@@ -425,6 +529,40 @@ export class PaintCanvas {
     this.renderer.render(this.quadScene, this.quadCam);
     this.renderer.setRenderTarget(previous);
     this.flip = 1 - this.flip;
+  }
+
+  /**
+   * 认形敷彩：把某个形体整体写进累积贴图。
+   *
+   * 画布远宽于高，沿 u 轴一趟会有严重的各向异性损耗，所以分两趟 ——
+   * 第一趟沿 u 轴（画布宽向 = 壁画 u 向，采样充足），覆盖整个 v 范围；
+   * 第二趟沿 v 轴补足 u 方向。两趟在着色器里取 max，交界处不出接缝，
+   * 也不会覆盖先前已敷上的形体。
+   */
+  fillShape(shape, index, opts = {}) {
+    if (!this.maskTexture) return false;
+    const slots = opts.slots ?? this.maskSlots ?? 24;
+    const [u0, v0, u1, v1] = shape.box;
+
+    const u = this.fillMaterial.uniforms;
+    u.uMasks.value = this.maskTexture;
+    u.uMaskGrid.value.set(1 / slots, 1);
+    u.uBox.value.set(u0, v0, u1 - u0, v1 - v0);
+    u.uSlot.value = shape.slot;
+    u.uIndex.value = index;
+
+    const prevTarget = this.renderer.getRenderTarget();
+    for (const axis of [1, 0]) {
+      const src = this.targets[this.flip];
+      const dst = this.targets[1 - this.flip];
+      u.uPrev.value = src.texture;
+      u.uAxisX.value = axis;
+      this.renderer.setRenderTarget(dst);
+      this.renderer.render(this.fillScene, this.quadCam);
+      this.flip = 1 - this.flip;
+    }
+    this.renderer.setRenderTarget(prevTarget);
+    return true;
   }
 
   /**
