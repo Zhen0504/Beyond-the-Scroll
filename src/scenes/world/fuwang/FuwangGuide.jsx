@@ -61,6 +61,13 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
       case 'already':
         show(`${paintEvent.shape?.what ?? '这一处'}已经敷过彩了。`, 'guide', 2400);
         break;
+      case 'wrong-pigment':
+        show(
+          `这一处该用${pigmentName(paintEvent.want)} —— 换一种颜色再点。`,
+          'nudge',
+          3200,
+        );
+        break;
       case 'idle-hint':
         show(
           paintEvent.targets?.length
@@ -133,6 +140,14 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const targets = shapeList.filter((s) => s.p === pigment);
   const pendingTargets = targets.filter((s) => !restorer?.isFilled?.(s.id));
   const shapeDone = (s) => !!restorer?.isFilled?.(s.id);
+
+  // 当前颜色在本折敷完后，推荐下一个还有余处的颜色
+  const nextColor = PIGMENTS
+    .map((p) => ({
+      ...p,
+      left: shapeList.filter((s) => s.p === p.id && !shapeDone(s)).length,
+    }))
+    .find((p) => p.id !== pigment && p.left > 0);
   // tick 由订阅定时器驱动：敷彩进度是命令式对象，需要它把变化带进渲染
   void tick;
 
@@ -228,21 +243,30 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
         <>
           <div className="fuwang__palette" role="toolbar" aria-label="矿物颜料">
             <div className="fuwang__swatches">
-              {PIGMENTS.map((p, i) => (
-                <button
-                  key={p.id}
-                  className="fuwang__swatch"
-                  data-active={p.id === pigment || undefined}
-                  style={{ '--swatch': p.hex }}
-                  onClick={() => selectPigment(p.id)}
-                  aria-pressed={p.id === pigment}
-                  aria-label={`${i + 1} ${p.name}`}
-                >
-                  <b />
-                  <span>{p.name}</span>
-                  <em>{p.hint}</em>
-                </button>
-              ))}
+              {PIGMENTS.map((p, i) => {
+                // 该颜料在本折还剩几处未敷彩 —— 据此提示观众切换颜色
+                const left = shapeList.filter(
+                  (s) => s.p === p.id && !shapeDone(s),
+                ).length;
+                const total = shapeList.filter((s) => s.p === p.id).length;
+                return (
+                  <button
+                    key={p.id}
+                    className="fuwang__swatch"
+                    data-active={p.id === pigment || undefined}
+                    data-empty={total === 0 || undefined}
+                    data-clear={total > 0 && left === 0 ? true : undefined}
+                    style={{ '--swatch': p.hex }}
+                    onClick={() => selectPigment(p.id)}
+                    aria-pressed={p.id === pigment}
+                    aria-label={`${i + 1} ${p.name}${total ? `，本折还剩 ${left} 处` : '，本折不用'}`}
+                  >
+                    <b />
+                    <span>{p.name}</span>
+                    <em>{total === 0 ? '不用' : left === 0 ? '已足' : `剩 ${left}`}</em>
+                  </button>
+                );
+              })}
             </div>
 
             <div
@@ -279,21 +303,22 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
           </div>
 
-          {/* 该敷哪里：直接列出本折用当前颜料的形体 */}
+          {/* 该敷哪里：列出本折用当前颜料、尚未敷彩的形体 */}
           {!foldDone && (
             <p className="fuwang__targetsline" role="status">
               {pendingTargets.length ? (
                 <>
                   <b style={{ '--swatch': currentPigment.hex }} />
                   <span>
-                    点亮处是要敷彩的形体，用<b>{currentPigment.name}</b>点它们：
+                    点亮处是<b>{currentPigment.name}</b>要敷的地方，点它们：
                     {pendingTargets.map((s) => s.what).join(' · ')}
                   </span>
                   <em>还剩 {pendingTargets.length} 处</em>
                 </>
               ) : targets.length ? (
                 <span>
-                  {currentPigment.name}的 {targets.length} 处都已敷彩 —— 换一种颜色
+                  {currentPigment.name}在本折已敷完 —— 换一种颜色
+                  {nextColor ? `（试试${nextColor.name}，还有 ${nextColor.left} 处）` : ''}
                 </span>
               ) : (
                 <span>本折不用{currentPigment.name} —— 换一种颜色</span>

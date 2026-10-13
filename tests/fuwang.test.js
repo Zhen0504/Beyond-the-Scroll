@@ -241,12 +241,22 @@ function makeRestorer() {
   return { r, uniforms, events, fills, canvas, clearCount: () => clears };
 }
 
-/** 在屏幕上点中某个形体的中心 */
-function clickShape(r, shape) {
+/**
+ * 在屏幕上点中某个形体。
+ * 现在必须先选对颜料 —— 只高亮当前颜料该敷的地方，点别的颜色不生效。
+ */
+function clickShape(r, shape, { matchPigment = true } = {}) {
+  if (matchPigment) r.setPigment(shape.p);
   const cx = (shape.box[0] + shape.box[2]) / 2;
   const cy = (shape.box[1] + shape.box[3]) / 2;
   r.pickFrom = () => ({ uv: { x: cx, y: cy } });
   return r.paintAt({ clientX: 50, clientY: 50 });
+}
+
+/** 把一折的每个形体都用它自己的颜料敷上 */
+function fillFold(r, foldIdx) {
+  r.setFold(foldIdx);
+  for (const s of foldShapes(FOLDS[foldIdx].id)) clickShape(r, s);
 }
 
 test('点中形体即整体敷彩（一下就好，不需要涂抹）', () => {
@@ -306,10 +316,7 @@ test('进度按「已敷彩形体数 / 本折形体数」计', () => {
 
 test('一折敷完发 fold-done；五折全完发 all-done', () => {
   const { r, events } = makeRestorer();
-  for (const [fi, f] of FOLDS.entries()) {
-    r.setFold(fi);
-    for (const s of foldShapes(f.id)) clickShape(r, s);
-  }
+  for (const fi of FOLDS.keys()) fillFold(r, fi);
   assert.ok(r.allDone, '五折全部敷完应完成');
   assert.ok(events.some((e) => e.type === 'fold-done'));
   assert.ok(events.some((e) => e.type === 'all-done'));
@@ -372,6 +379,60 @@ test('已敷彩的形体不再交给着色器高亮', () => {
   assert.equal(active1, 0, '本折敷完后不应再有高亮');
 });
 
+test('选错颜色点不上去：必须按该处原本的用色敷彩', () => {
+  const { r, events } = makeRestorer();
+  r.setFold(0);
+  const shape = foldShapes(FOLDS[0].id)[0];
+  const other = PIGMENT_KEYS.find((k) => k !== shape.p);
+  assert.ok(other, '应存在另一种颜料');
+
+  r.setPigment(other);
+  assert.equal(
+    clickShape(r, shape, { matchPigment: false }),
+    false,
+    '选错颜色不应敷彩',
+  );
+  assert.equal(r.isFilled(shape.id), false, '该形体应仍未敷彩');
+  const bad = events.filter((e) => e.type === 'wrong-pigment').pop();
+  assert.ok(bad, '应提示用错了颜色');
+  assert.equal(bad.want, shape.p, '提示应指出该用哪种颜色');
+
+  r.setPigment(shape.p);
+  assert.equal(clickShape(r, shape, { matchPigment: false }), true, '换对颜色后应能敷上');
+  assert.equal(r.isFilled(shape.id), true);
+});
+
+test('切换颜色时，交给着色器高亮的只有该颜料的形体', () => {
+  const { r, uniforms } = makeRestorer();
+  r.setFold(0);
+  for (const pid of PIGMENT_KEYS) {
+    r.setPigment(pid);
+    const want = shapesFor(FOLDS[0].id, pid).map((s) => s.slot).sort();
+    const got = Array.from(uniforms.uShapeSlot.value)
+      .filter((_, i) => uniforms.uShapeBounds.value[i].z > 0)
+      .sort();
+    assert.deepEqual(got, want, `选${pigmentName(pid)}时应只高亮它的形体`);
+  }
+});
+
+test('敷过彩的形体从该颜色的高亮里移除', () => {
+  const { r, uniforms } = makeRestorer();
+  r.setFold(0);
+  const list = shapesFor(FOLDS[0].id, 'shilv');
+  assert.ok(list.length >= 1);
+  r.setPigment('shilv');
+  const count = () => Array.from(uniforms.uShapeSlot.value)
+    .filter((_, i) => uniforms.uShapeBounds.value[i].z > 0).length;
+  assert.equal(count(), list.length);
+
+  clickShape(r, list[0], { matchPigment: false });
+  assert.equal(count(), list.length - 1, '敷过的应从高亮里移除');
+  // 别的颜料的高亮不受影响
+  r.setPigment('shiqing');
+  const q = shapesFor(FOLDS[0].id, 'shiqing');
+  assert.equal(count(), q.length, '换色后应显示该颜料的全部形体');
+});
+
 test('当前颜料的形体排在高亮队列前面', () => {
   const { r, uniforms } = makeRestorer();
   r.setFold(0);
@@ -421,10 +482,7 @@ test('完成状态可序列化，便于核验与留档', () => {
 
 test('全部进度上传材质，切折后已完成区段保持重彩', () => {
   const { r, uniforms } = makeRestorer();
-  for (const [fi, f] of FOLDS.entries()) {
-    r.setFold(fi);
-    for (const s of foldShapes(f.id)) clickShape(r, s);
-  }
+  for (const fi of FOLDS.keys()) fillFold(r, fi);
   assert.ok(uniforms.uFold0.value >= 1);
   assert.ok(uniforms.uFold4.value >= 1);
   r.setFold(0);

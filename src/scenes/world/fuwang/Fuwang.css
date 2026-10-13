@@ -98,6 +98,23 @@
   background: rgb(201 168 106 / 12%);
 }
 
+/* 本折不用这种颜色：压暗，避免观众白点 */
+.fuwang__swatch[data-empty] {
+  opacity: 0.4;
+}
+
+/* 这种颜色在本折已敷完 */
+.fuwang__swatch[data-clear] em {
+  color: var(--gold-soft);
+  opacity: 1;
+}
+
+.fuwang__swatch[data-clear] b {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 45%),
+    0 0 0 2px rgb(201 168 106 / 55%);
+}
+
 .fuwang__swatch[data-active] b {
   box-shadow:
     inset 0 0 0 1px rgb(0 0 0 / 45%),

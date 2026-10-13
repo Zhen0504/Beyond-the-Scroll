@@ -141,16 +141,28 @@ export class Restorer {
   // ---- 敷彩 ----
 
   /**
-   * 落笔：命中某个尚未敷彩的形体 → 该形体整体敷色。
-   * @returns {boolean} 是否发生了敷彩
+   * 落笔：命中某个**当前颜料尚未敷彩**的形体 → 该形体整体敷色。
+   *
+   * 只认当前颜料：这样观众必须按画中该处原本的用色来敷，
+   * 四种颜色才各有其用，而不是随便点。
    */
   paintAt(e) {
     const hit = this.pickFrom(e);
     if (!hit) return false;
     const shape = this.shapeAt(hit.uv.x, hit.uv.y);
     if (!shape) return false;
+
     if (this.filled.has(shape.id)) {
       this.onEvent({ type: 'already', shape, message: `${shape.what}已敷彩。` });
+      return false;
+    }
+    if (shape.p !== this.pigment) {
+      this.onEvent({
+        type: 'wrong-pigment',
+        shape,
+        want: shape.p,
+        message: `${shape.what}该用${pigmentName(shape.p)} —— 换一种颜色。`,
+      });
       return false;
     }
     this.fillShape(shape);
@@ -334,11 +346,10 @@ export class Restorer {
     m.uHoverU1.value = Math.min(1, this.fold.u1);
     if (m.uBrushSize) m.uBrushSize.value = this.brush;
 
-    // 当前折里「尚未敷彩」的形体，按颜料优先排序后送进着色器
-    const pending = this.shapes.filter((s) => !this.filled.has(s.id));
-    const mine = pending.filter((s) => s.p === this.pigment);
-    const others = pending.filter((s) => s.p !== this.pigment);
-    const active = [...mine, ...others].slice(0, MAX_ACTIVE_SHAPES);
+    // 只高亮**当前颜料**该敷的地方 —— 换一种颜色，点亮的位置就跟着变。
+    // 早先把全部未敷彩形体都点亮（只是排了个序），结果四种颜色失去意义：
+    // 无论选哪个，画面上所有轮廓都在发光，随便点都能上色。
+    const active = this.targets.filter((s) => !this.filled.has(s.id)).slice(0, MAX_ACTIVE_SHAPES);
 
     const bounds = m.uShapeBounds?.value;
     if (bounds) {
