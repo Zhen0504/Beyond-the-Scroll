@@ -517,7 +517,7 @@ export const CAST = [
   },
   {
     id: "monk",
-    name: "德明和尚 · 背身合掌",
+    name: "德明和尚 · 背身叉手",
     section: "guanwu",
     x: 20,
     z: -2.85,

@@ -6,7 +6,7 @@ export const SOURCES = [
     url: "https://www.dpm.org.cn/collection/paint/228200.html",
   },
   {
-    title: "故宫博物院 · 长卷中的连续叙事",
+    title: "故宫博物院 · 2015年《韩熙载夜宴图》App上线",
     url: "https://www.dpm.org.cn/classify_detail/180639.html",
   },
 ];
@@ -94,7 +94,7 @@ const stories = [
         "han-drum",
         "提槌 · 落鼓 · 回弹",
         ["这一拍，接住。", "鼓点不能乱……诸位莫看我，只看舞便好。"],
-        "画中韩熙载亲自击鼓。旁边合掌而立的德明和尚，让热闹的舞席多了一层意味。",
+        "画中韩熙载亲自击鼓。旁边双手交握而立的德明和尚，让热闹的舞席多了一层意味。",
       ),
       stop(
         "随拍相和",

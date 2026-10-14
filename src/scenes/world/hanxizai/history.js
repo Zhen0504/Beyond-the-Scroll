@@ -46,6 +46,46 @@ export const REFERENCES = {
     url: "https://www.dpm.org.cn/lemmas/242645.html",
     kind: "舞蹈词条",
   },
+  sealStudy: {
+    title: "余辉｜卷年代考，第37页：题跋与辨印",
+    url: "https://www.dpm.org.cn/Uploads/pdf/1913/T00037_00.pdf",
+    kind: "故宫博物院院刊1993年第4期 · 转述徐邦达研究",
+  },
+  gestureText: {
+    title: "余辉｜卷年代考，第43页：叉手与古籍",
+    url: "https://www.dpm.org.cn/Uploads/pdf/1913/T00043_00.pdf",
+    kind: "研究论文 · 礼仪比较",
+  },
+  gestureTomb: {
+    title: "余辉｜卷年代考，第44页：白沙宋墓旁证",
+    url: "https://www.dpm.org.cn/Uploads/pdf/1913/T00044_00.pdf",
+    kind: "研究论文 · 出土图像比较",
+  },
+  materialStudy: {
+    title: "余辉｜卷年代考，第49页：多种材料与断代",
+    url: "https://www.dpm.org.cn/Uploads/pdf/1913/T00049_00.pdf",
+    kind: "研究论文 · 断代方法与意见",
+  },
+  keepers: {
+    title: "故宫博物院｜于坚：怀念郑振铎先生",
+    url: "https://www.dpm.org.cn/Uploads/wenhua/E19/E19a-3-1.htm",
+    kind: "亲历者回忆 · 文物收购工作",
+  },
+  returnStudy: {
+    title: "余辉｜卷年代考，第38页：1950年代购回",
+    url: "https://www.dpm.org.cn/Uploads/pdf/1913/T00038_00.pdf",
+    kind: "研究论文 · 流传记述",
+  },
+  whitfield: {
+    title: "韦陀｜《紫禁城》总143期，第76页：观画回忆",
+    url: "https://www.dpm.org.cn/Uploads/pdf/5069/T00076_00.pdf",
+    kind: "研究者亲历记述 · 年代依作者回忆",
+  },
+  digital: {
+    title: "故宫博物院｜2015年《韩熙载夜宴图》App上线",
+    url: "https://www.dpm.org.cn/classify_detail/180639.html",
+    kind: "博物馆项目记录 · 当代演绎",
+  },
 };
 
 export const PEOPLE = [
@@ -115,11 +155,11 @@ export const PEOPLE = [
     portrait: "monk",
     chapters: [1, 2],
     bio: "故宫释读将画中僧人识为韩熙载的朋友德明。现有材料不足以在这里为他编写详细年谱。",
-    scene: "观舞段合掌而立，身体背向舞者。他的姿态与鼓舞的热闹形成反差。",
+    scene: "观舞段双手交握而立，身体背向舞者；余辉将此手势识作叉手礼。他的姿态与鼓舞的热闹形成反差。",
     relation: "韩熙载的僧友。",
     boundary:
       "“尴尬”是对姿态的解释，并非现场自述。也不能因为他在画中，就把他写成密探；他不是南唐使臣李德明。",
-    refs: ["palace", "exhibition"],
+    refs: ["palace", "exhibition", "gestureText", "gestureTomb"],
   },
   {
     id: "shu",

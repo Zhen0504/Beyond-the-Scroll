@@ -1,17 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { EPILOGUE, MYSTERIES, PEOPLE, REFERENCES } from "./history.js";
-
-export function Citations({ ids }) {
-  return (
-    <div className="night-citations" aria-label="本段依据">
-      {ids.map((id) => (
-        <a key={id} href={REFERENCES[id].url} target="_blank" rel="noreferrer">
-          {REFERENCES[id].title} ↗
-        </a>
-      ))}
-    </div>
-  );
-}
+import { EPILOGUE, MYSTERIES, PEOPLE } from "./history.js";
+import Citations from "./Citations.jsx";
+import { ReaderLetter, ReaderLegacy } from "./ReaderLetters.jsx";
 
 function Portrait({ world, id }) {
   const ref = useRef(null);
@@ -88,6 +78,12 @@ export default function NightArchive({
   world,
   initialPerson,
   continuationLabel,
+  letterIndex,
+  returnFromLetter,
+  reception,
+  onLetter,
+  onCollect,
+  onTakeaway,
 }) {
   const [hint, setHint] = useState(false);
   const [personId, setPersonId] = useState(
@@ -96,6 +92,22 @@ export default function NightArchive({
   const mystery = MYSTERIES[chapter],
     result = answers[mystery.id];
   const feedbackRef = useRef(null);
+  const frameRef = useRef(null);
+  useEffect(() => {
+    if (kind === "letter") {
+      frameRef.current.scrollTop = 0;
+      frameRef.current
+        .querySelector(".night-reader__nav [aria-current]")
+        ?.focus({ preventScroll: true });
+    }
+    if (kind === "ending" && returnFromLetter) {
+      // The dialog focus trap initializes in the parent effect first.
+      const raf = requestAnimationFrame(() =>
+        frameRef.current?.querySelector(".night-legacy")?.focus(),
+      );
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [kind, letterIndex, returnFromLetter]);
   const people = PEOPLE.filter((p) => p.chapters.includes(chapter));
   const person = people.find((p) => p.id === personId) ?? people[0];
   const count = Object.values(answers).filter((a) => a.correct).length;
@@ -107,13 +119,23 @@ export default function NightArchive({
     );
   }
   return (
-    <div className={`night-archive night-archive--${kind}`}>
+    <div ref={frameRef} className={`night-archive night-archive--${kind}`}>
       <div className="night-archive__top">
         <span>韩熙载夜宴图 · 画外笺</span>
         <button onClick={onClose} aria-label="关闭画外笺">
           收笺 ×
         </button>
       </div>
+      {kind === "letter" && (
+        <ReaderLetter
+          key={letterIndex}
+          index={letterIndex}
+          progress={reception}
+          onSelect={onLetter}
+          onCollect={onCollect}
+          onClose={onClose}
+        />
+      )}
       {kind === "mystery" && (
         <>
           <p className="night-eyebrow">
@@ -231,7 +253,9 @@ export default function NightArchive({
         <>
           <p className="night-eyebrow">终章 · 画外余音</p>
           <h2>{EPILOGUE.title}</h2>
-          <p className="night-archive__lead">看见宴乐，也看见宴乐背后的人。</p>
+          <p className="night-archive__lead">
+            看见宴乐背后的人，也看见让我们与他们相遇的人。
+          </p>
           <div className="night-seals" aria-label="五折线索回顾">
             {MYSTERIES.map((m, i) => (
               <button
@@ -279,8 +303,13 @@ export default function NightArchive({
               ))}
             </ol>
             <p className="night-ending-unknown">{EPILOGUE.unknown}</p>
+            <ReaderLegacy
+              progress={reception}
+              onLetter={onLetter}
+              onTakeaway={onTakeaway}
+            />
             <p className="night-ending-last">
-              画里，乐声还未停。画外，我们终于知道：今夜的安稳，并不是所有人的余生。
+              画里，乐声还未停。画外，新的读画人已经到来。带着依据与好奇，把这一夜继续讲下去。
             </p>
           </article>
           <div className="night-archive__actions">

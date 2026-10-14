@@ -1,11 +1,24 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Vector3 } from "three";
 import { CHAPTERS, SOURCES } from "./story.js";
 import NightArchive from "./NightArchive.jsx";
 import MusicControl from "./MusicControl.jsx";
 import { MYSTERIES, REFERENCES, recordAnswer } from "./history.js";
+import {
+  LETTERS,
+  RECEPTION_STORAGE,
+  collectLetter,
+  restoreReception,
+} from "./reception.js";
 import "./ScrollGuide.css";
 import "./NightArchive.css";
+import "./ReaderLetters.css";
 
 const NUMERALS = ["壹", "贰", "叁", "肆", "伍"];
 const ACTOR_PERSON = {
@@ -27,6 +40,22 @@ export default function ScrollGuide({ world, onExit }) {
   const moving = state.phase !== "scene";
   const [sources, setSources] = useState(false);
   const [archive, setArchive] = useState(null);
+  const [reception, setReception] = useState(() => {
+    try {
+      return restoreReception(
+        JSON.parse(sessionStorage.getItem(RECEPTION_STORAGE)),
+      );
+    } catch {
+      return restoreReception(null);
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(RECEPTION_STORAGE, JSON.stringify(reception));
+    } catch {
+      /* Reading remains available without browser storage. */
+    }
+  }, [reception]);
   const [answers, setAnswers] = useState(() => {
     try {
       const saved = JSON.parse(
@@ -48,6 +77,25 @@ export default function ScrollGuide({ world, onExit }) {
     }
   }, [answers]);
   const openArchive = (kind, person) => setArchive({ kind, person });
+  const closeArchive = useCallback(
+    () =>
+      setArchive((current) =>
+        current?.returnTo === "ending"
+          ? { kind: "ending", returnFromLetter: true }
+          : null,
+      ),
+    [],
+  );
+  const openLetter = (index) =>
+    setArchive((current) => ({
+      kind: "letter",
+      letter: index,
+      returnTo:
+        current?.kind === "ending" || current?.returnTo === "ending"
+          ? "ending"
+          : null,
+    }));
+  const letter = LETTERS[state.chapter];
   const modalRef = useRef(null);
   const modal = !!archive || sources || state.phase === "paused";
   useEffect(() => {
@@ -55,6 +103,7 @@ export default function ScrollGuide({ world, onExit }) {
     return () => world.music.setReading(false);
   }, [world, archive, sources]);
   const bubbleRef = useRef(null),
+    routeRef = useRef(null),
     enterRef = useRef(null),
     nextRef = useRef(null);
   const [u0, u1] = chapter.paintingU;
@@ -78,7 +127,7 @@ export default function ScrollGuide({ world, onExit }) {
         return;
       if (e.code === "Escape") {
         e.preventDefault();
-        if (archive) setArchive(null);
+        if (archive) closeArchive();
         else if (sources) setSources(false);
         else state.phase === "paused" ? tour.resume() : tour.pause();
       }
@@ -103,13 +152,13 @@ export default function ScrollGuide({ world, onExit }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tour, state.phase, sources, archive]);
+  }, [tour, state.phase, sources, archive, closeArchive]);
   useEffect(() => {
     if (!modal) return;
     const previous = document.activeElement;
     const el = modalRef.current;
     const focusable = () => [
-      ...el.querySelectorAll("button:not(:disabled),a[href]"),
+      ...el.querySelectorAll("button:not(:disabled),a[href],summary"),
     ];
     focusable()[0]?.focus();
     const trap = (e) => {
@@ -152,7 +201,9 @@ export default function ScrollGuide({ world, onExit }) {
         y = (-anchor.y * 0.5 + 0.5) * height;
       const half = el.offsetWidth / 2;
       el.style.left = `${Math.max(half + 12, Math.min(width - half - 12, x))}px`;
-      el.style.top = `${Math.max(82, Math.min(height - 255 - el.offsetHeight, y - el.offsetHeight - 10))}px`;
+      const routeTop =
+        routeRef.current?.getBoundingClientRect().top ?? height - 255;
+      el.style.top = `${Math.max(82, Math.min(routeTop - 18 - el.offsetHeight, y - el.offsetHeight - 10))}px`;
       el.style.visibility =
         anchor.z > -1 && anchor.z < 1 ? "visible" : "hidden";
       raf = requestAnimationFrame(position);
@@ -174,7 +225,7 @@ export default function ScrollGuide({ world, onExit }) {
   };
   return (
     <section
-      className={`night-tour night-tour--${state.phase}`}
+      className={`night-tour night-tour--readers night-tour--${state.phase}`}
       aria-label="夜宴五折导览"
     >
       <header className="night-tour__header" inert={modal}>
@@ -262,6 +313,17 @@ export default function ScrollGuide({ world, onExit }) {
               {chapter.enter}
               <span> →</span>
             </button>
+            <button
+              className="night-plate__letter"
+              onClick={() => openLetter(state.chapter)}
+            >
+              <span>
+                后世来信 ·{" "}
+                {reception.read.includes(letter.id) ? "已收笺" : "待展开"}
+              </span>
+              <strong>{letter.teaser}</strong>
+              <small>读画的接力 ↗</small>
+            </button>
             <p className="night-plate__hint">
               沿席前小径，逐处停留 · ↑ ↓ 前行与回看
             </p>
@@ -316,7 +378,7 @@ export default function ScrollGuide({ world, onExit }) {
               </div>
             </div>
           )}
-          <footer className="night-route" inert={modal}>
+          <footer ref={routeRef} className="night-route" inert={modal}>
             <div className="night-route__heading">
               <p>
                 <small>
@@ -331,6 +393,14 @@ export default function ScrollGuide({ world, onExit }) {
               <span className="night-route__thread-label">明线</span>
               {stop.note}
             </p>
+            <button
+              className="night-route__letter"
+              onClick={() => openLetter(state.chapter)}
+            >
+              <span>后世来信</span>
+              <span>{letter.prompts[state.stop]}</span>
+              <span aria-hidden="true">↗</span>
+            </button>
             <div className="night-route__bottom">
               <button
                 onClick={() => tour.move(-1)}
@@ -422,6 +492,9 @@ export default function ScrollGuide({ world, onExit }) {
             <p>
               悬浮对话由本项目创作，并非史料原话；动作也是据画意设计。人物被遮挡的轮廓作了补绘，家具距离为观览作了调整。
             </p>
+            <p>
+              “后世来信”是今人拟写的导读，不是学者或古人的书信原文。辨印、宋墓旁证、寻回与装裱见闻均在各笺附出处；当代乐舞演绎与原创配乐不视为宴会原声。
+            </p>
             <ul>
               {[
                 ...Object.values(REFERENCES),
@@ -458,7 +531,9 @@ export default function ScrollGuide({ world, onExit }) {
               ? "解开画外线索"
               : archive.kind === "people"
                 ? "人物笺"
-                : "终章：画外余音"
+                : archive.kind === "letter"
+                  ? "后世来信"
+                  : "终章：画外余音"
           }
         >
           <NightArchive
@@ -467,11 +542,20 @@ export default function ScrollGuide({ world, onExit }) {
             chapter={state.chapter}
             answers={answers}
             initialPerson={archive.person}
+            letterIndex={archive.letter}
+            returnFromLetter={archive.returnFromLetter}
+            reception={reception}
+            onLetter={openLetter}
+            onCollect={(id) => {
+              setReception((r) => collectLetter(r, id));
+              closeArchive();
+            }}
+            onTakeaway={(id) => setReception((r) => ({ ...r, takeaway: id }))}
             world={world}
             onAnswer={(i, choice) =>
               setAnswers((a) => recordAnswer(a, i, choice))
             }
-            onClose={() => setArchive(null)}
+            onClose={closeArchive}
             continuationLabel={last ? undefined : "回到席间 · 接着寻找"}
             onContinue={
               archive.kind === "ending"

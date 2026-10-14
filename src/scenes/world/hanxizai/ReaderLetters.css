@@ -1,0 +1,300 @@
+.night-tour--readers .night-plate__painting {
+  max-width: 920px;
+  box-sizing: border-box;
+}
+.night-tour .night-plate__letter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  width: min(590px, 100%);
+  margin: 18px auto 24px;
+  padding: 13px 20px;
+  text-align: left;
+  border: 1px solid #9b82665e;
+  border-left: 3px solid #63756a;
+  background: #f5ebd44d;
+}
+.night-plate__letter > span,
+.night-plate__letter > small {
+  font-size: 10px;
+  color: #53675c;
+  letter-spacing: 1px;
+}
+.night-plate__letter > strong {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  line-height: 1.8;
+  font-weight: 400;
+}
+.night-plate__letter > small {
+  grid-column: 2;
+  grid-row: 1;
+}
+.night-tour .night-route__letter {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 0 10px;
+  text-align: left;
+  color: #405e50;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.night-route__letter > span:first-child {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding-top: 1px;
+}
+.night-route__letter:hover > span:nth-child(2) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.night-reader__subtitle {
+  color: #586d5f;
+}
+.night-reader__nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 24px 0 18px;
+}
+.night-reader__nav button {
+  margin: 0;
+  border: 1px solid #a29479;
+  padding: 9px 4px;
+  display: grid;
+  gap: 5px;
+}
+.night-reader__nav small {
+  font-size: 9px;
+  color: #716953;
+}
+.night-reader__nav [aria-current] {
+  background: #536858;
+  color: #f7ecd6;
+  border-color: #536858;
+}
+.night-reader__nav [aria-current] small {
+  color: #e3dec6;
+}
+.night-reader__painting {
+  margin: 0 0 22px;
+  padding: 10px;
+  background: #bbaa8855;
+  border: 1px solid #b8a580;
+}
+.night-reader__painting figcaption {
+  font-size: 11px;
+  line-height: 1.9;
+  padding: 10px 4px 2px;
+  color: #665a45;
+}
+.night-reader__question {
+  padding: 14px 20px;
+  border-left: 2px solid #647b6a;
+  background: #73896d12;
+}
+.night-reader__question > span {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #586d5f;
+}
+.night-reader__question p {
+  margin-bottom: 0;
+}
+.night-tour .night-reader__unfold {
+  margin: 20px 0 4px;
+  line-height: 1.8;
+  max-width: 100%;
+}
+.night-reader__response {
+  margin-top: 25px;
+  scroll-margin-top: 68px;
+}
+.night-reader__response:focus,
+.night-legacy:focus {
+  outline: none;
+}
+.night-reader__response section {
+  margin: 24px 0;
+}
+.night-reader__response h3 {
+  color: #455e4e;
+  margin: 0 0 8px;
+}
+.night-reader__response section p {
+  margin: 0 0 10px;
+}
+.night-reader__boundary {
+  color: #6e624d;
+  padding: 14px 18px;
+  background: #b9a47e1f;
+}
+.night-reader__boundary b {
+  display: block;
+  margin-bottom: 6px;
+  color: #6d654c;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+.night-reader__reply {
+  padding: 14px 0;
+  border-block: 1px solid #bba989;
+  color: #485f4d;
+}
+.night-reader__next {
+  color: #7d6246;
+}
+.night-legacy {
+  margin-top: 32px;
+  padding-top: 26px;
+  border-top: 1px solid #a9906d;
+  scroll-margin-top: 65px;
+}
+.night-legacy > h3 {
+  color: #455f4e;
+  font-size: 20px;
+}
+.night-reader__timeline {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+}
+.night-reader__timeline li {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 20px;
+  padding-bottom: 24px;
+}
+.night-reader__timeline li > span {
+  padding-top: 5px;
+  color: #526851;
+  font-size: 12px;
+}
+.night-reader__timeline li > div {
+  border-left: 1px solid #8e9c8266;
+  padding-left: 20px;
+}
+.night-reader__timeline h4 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 500;
+}
+.night-reader__timeline p {
+  margin: 7px 0;
+}
+.night-reader__timeline button {
+  color: #4d684f;
+  margin: 0 0 6px;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.night-reader__count {
+  color: #5c6b51;
+}
+.night-reader__collection {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+.night-reader__collection button {
+  text-align: left;
+  margin: 0;
+  padding: 12px 15px;
+  border: 1px solid #ac9b7a;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.night-reader__collection small {
+  display: block;
+  font-size: 10px;
+  color: #6a7056;
+  margin-bottom: 6px;
+}
+.night-reader__collection [data-collected] {
+  border-color: #7c8c6f;
+  background: #73896d12;
+}
+.night-reader__handover {
+  margin-top: 30px;
+  padding: 22px;
+  border: 1px solid #8d9a7d;
+  background: #73896d0d;
+}
+.night-reader__handover > h3 {
+  color: #455e4e;
+}
+.night-reader__takeaways {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.night-reader__takeaways button {
+  border: 1px solid #879578;
+  margin: 0;
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.night-reader__takeaways [aria-pressed="true"] {
+  color: #f5ecd6;
+  background: #536858;
+}
+.night-reader__message {
+  min-height: 95px;
+  margin: 20px 0;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid #78876a;
+  color: #415b4b;
+}
+@media (max-width: 700px) {
+  .night-tour .night-route__letter {
+    font-size: 10px;
+    gap: 8px;
+    padding: 5px 0 8px;
+  }
+  .night-route__letter > span:first-child {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .night-tour .night-plate__letter {
+    padding: 12px 15px;
+    width: calc(100% - 24px);
+  }
+  .night-reader__nav {
+    gap: 4px;
+  }
+  .night-reader__painting {
+    padding: 6px;
+  }
+  .night-reader__timeline li {
+    grid-template-columns: 65px 1fr;
+    gap: 10px;
+  }
+  .night-reader__timeline li > span {
+    font-size: 10px;
+  }
+  .night-reader__timeline li > div {
+    padding-left: 12px;
+  }
+  .night-reader__handover {
+    padding: 16px 14px;
+  }
+  .night-reader__collection button {
+    font-size: 11px;
+    padding: 10px;
+  }
+  .night-reader__message {
+    min-height: 0;
+  }
+}
+@media (max-height: 650px) {
+  .night-tour .night-route__letter {
+    padding-block: 3px;
+  }
+}
