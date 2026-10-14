@@ -225,6 +225,12 @@ test('本项目创作声明齐备，且未使用「官方」类表述', () => {
   assert.ok(blob.includes('艺术转译'));
   assert.ok(blob.includes('非敦煌研究院的官方解读或认可'));
 });
+
+test('全画完成弹层与常驻提示都提供归卷出口', () => {
+  const guide = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'FuwangGuide.jsx'), 'utf8');
+  assert.match(guide, /fuwang__return-choice[\s\S]*?onClick=\{onExit\}>归卷/);
+  assert.match(guide, /fuwang__finished-actions[\s\S]*?onClick=\{onExit\}>归卷/);
+});
 /* ================= 按色开关 ================= */
 
 function makeUniforms() {

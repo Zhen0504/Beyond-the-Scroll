@@ -315,9 +315,12 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             <div className="fuwang__finished" role="status">
               <b>五折色层已显</b>
               <span>整幅《鹿王本生》六类色层显影完成 —— 可读释文</span>
-              <button type="button" className="night-primary" onClick={() => setLecture(true)}>
-                读全画释文
-              </button>
+              <div className="fuwang__finished-actions">
+                <button type="button" className="night-primary" onClick={() => setLecture(true)}>
+                  读全画释文
+                </button>
+                <button type="button" onClick={onExit}>归卷</button>
+              </div>
             </div>
           )}
         </>
@@ -350,6 +353,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
           allDone={doneCount >= CHAPTERS.length}
           autoLecture={autoLecture}
           onAutoLectureChange={changeAutoLecture}
+          onExit={onExit}
         />
       )}
     </div>
@@ -411,7 +415,7 @@ function SourcePanel({ onClose, list, chapter }) {
 }
 
 /** 释文面板：完成敷彩后解锁的整幅讲解 */
-function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureChange }) {
+function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureChange, onExit }) {
   const ref = useRef(null);
   useEffect(() => {
     const panel = ref.current?.firstElementChild;
@@ -425,6 +429,13 @@ function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureCha
           {allDone ? '六类色层已显 · 全画释文' : `第${chapter.name}折 · 敦煌研究院网站释文`}
         </p>
         <h2>{allDone ? '九色鹿王本生' : chapter.name}</h2>
+
+        {allDone && (
+          <div className="fuwang__return-choice" role="status">
+            <span>五折均已完成，可以继续阅读全画释文，也可以归卷返回画廊。</span>
+            <button type="button" onClick={onExit}>归卷</button>
+          </div>
+        )}
 
         <ul className="fuwang__quotes">
           {chapter.quotes?.map((q) => (
@@ -496,9 +507,12 @@ function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureCha
             <small>仍可点击“释文”或按 L 随时查看</small>
           </span>
         </label>
-        <button className="night-primary" onClick={onClose}>
-          回到壁画
-        </button>
+        <div className="fuwang__lecture-actions">
+          <button className="night-primary" onClick={onClose}>
+            回到壁画
+          </button>
+          {allDone && <button onClick={onExit}>归卷</button>}
+        </div>
       </div>
     </div>
   );

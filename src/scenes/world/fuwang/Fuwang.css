@@ -269,8 +269,41 @@
   letter-spacing: 0.08em;
 }
 
-.fuwang__finished .night-primary {
+.fuwang__finished-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 4px;
+}
+
+.fuwang__finished-actions button,
+.fuwang__lecture-actions button,
+.fuwang__return-choice button {
+  min-width: 88px;
+}
+
+.fuwang__finished .night-primary {
+  margin-top: 0;
+}
+
+.fuwang__return-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 12px 0 18px;
+  padding: 11px 13px;
+  border: 1px solid rgb(143 47 36 / 32%);
+  border-radius: 3px;
+  background: rgb(167 54 43 / 7%);
+  color: #5c4a42;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.fuwang__lecture-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
 }
 
 /* ---------- 该涂哪里 ---------- */
