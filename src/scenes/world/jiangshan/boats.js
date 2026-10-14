@@ -86,7 +86,7 @@ function oarGeometry() {
   return mergeGeometries([paint(shaft, '#7a5c40', MAT.wood), paint(blade, '#6b4e36', MAT.wood), paint(grip, '#5a4030', MAT.wood)]);
 }
 
-class Boat {
+export class Boat {
   constructor({ material, x, z, angle, canopy, heightAt, walkMap, oars = true, fisher=false }) {
     this.x = x;
     this.z = z;
@@ -145,6 +145,17 @@ class Boat {
     return n;
   }
 
+  motionCost(x,z,h){
+    const fx=Math.cos(h),fz=-Math.sin(h);let cost=0;
+    for(let i=-4;i<=4;i++){
+      const px=x+fx*i*.725,pz=z+fz*i*.725,ground=this.heightAt(px,pz);
+      if(ground>-.35)cost+=.5+ground+.35;
+      if(this.walkMap.blocked(px,pz,.75,-.5,1.8))cost+=.5;
+      for(const o of this.others??[])if(o!==this)cost+=Math.max(0,.8-o.hullDistance(px,pz));
+    }
+    return cost;
+  }
+
   update(dt, input) {
     this._t += dt;
     const t = this._t + this.phase;
@@ -161,24 +172,28 @@ class Boat {
     this.turnVel *= Math.exp(-dt * 2.4);
 
     if (dt > 0 && (input || this.occupied || Math.abs(this.speed) > 0.01)) {
-      const h1 = this.heading + this.turnVel * dt * (0.55 + Math.min(1, Math.abs(this.speed) / 2));
-      const fx = Math.cos(h1), fz = -Math.sin(h1);
-      const flow = riverFlow(this.x, this.z);
-      const nx = this.x + fx * this.speed * dt + flow.x * dt * 0.7;
-      const nz = this.z + fz * this.speed * dt + flow.z * dt * 0.7;
-      // 只要不比现在更“搁浅”就允许：已靠岸的船也能转身划离
-      const cur = this.badness(this.x, this.z, this.heading);
-      if (this.badness(nx, nz, h1) <= cur) {
-        this.x = nx;
-        this.z = nz;
-        this.heading = h1;
-      } else if (this.badness(this.x, this.z, h1) <= cur) {
-        this.heading = h1;
-        this.speed *= -0.2;
-      } else {
-        this.speed *= -0.2;
-        this.turnVel *= -0.3;
+      // Continuous overlap depth permits gradual escape; sample counts alone
+      // can reject a safer pose simply because one more point touches a hull.
+      const cur=this.motionCost(this.x,this.z,this.heading);
+      const h1=this.heading+this.turnVel*dt*(.55+Math.min(1,Math.abs(this.speed)/2));
+      if(this.motionCost(this.x,this.z,h1)<=cur+1e-6)this.heading=h1;
+      else this.turnVel*=.85;
+      const fx=Math.cos(this.heading),fz=-Math.sin(this.heading),flow=riverFlow(this.x,this.z);
+      const driveX=fx*this.speed*dt,driveZ=fz*this.speed*dt;
+      const dx=driveX+flow.x*dt*.7,dz=driveZ+flow.z*dt*.7;
+      const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.12));let moved=false;
+      for(let i=0;i<steps;i++){
+        const cost=this.motionCost(this.x,this.z,this.heading);
+        // Try the full move, then rowing without adverse current, then slide
+        // along either axis. Never bounce the boat back into its neighbour.
+        const options=[[dx/steps,dz/steps],[driveX/steps,driveZ/steps]];
+        const axes=[[dx/steps,0],[0,dz/steps]].sort((a,b)=>Math.hypot(...b)-Math.hypot(...a));options.push(...axes);
+        for(const [mx,mz] of options){
+          if(Math.hypot(mx,mz)<1e-8)continue;
+          if(this.motionCost(this.x+mx,this.z+mz,this.heading)<=cost+1e-6){this.x+=mx;this.z+=mz;moved=true;break;}
+        }
       }
+      if(!moved)this.speed*=.94;
     }
 
     const y = 0.22 + Math.sin(t * 1.3) * 0.035;
@@ -211,6 +226,7 @@ export function createBoats({ material, heightAt, walkMap, makePerson }) {
   const npcs=[];
   const boats = STRUCTURES.boats.map((b) => {
     const boat = new Boat({ material, ...b, heightAt, walkMap, oars: !b.fisher });
+    boat.waterfall=b.waterfall;
     if (b.fisher && makePerson) {
       const m = makePerson('fisher', 'sit');
       m.position.set(.35,.12,0);
@@ -226,6 +242,18 @@ export function createBoats({ material, heightAt, walkMap, makePerson }) {
     return boat;
   });
   for (const b of boats) b.others = boats;
+  // Pick a navigable spot with a reachable bank, away from the falling water.
+  for(const b of boats.filter(b=>b.waterfall!==undefined)){
+    const fall=STRUCTURES.waterfalls[b.waterfall];let best=null;
+    for(let dz=8;dz<=34;dz+=2)for(let dx=-8;dx<=8;dx+=1){
+      const x=fall.x+dx,z=fall.z+dz;
+      if(b.badness(x,z,b.heading)!==0)continue;
+      const landing=walkMap.findLanding(x,z,6);if(!landing)continue;
+      const score=Math.hypot(x-b.x,z-b.z)+Math.hypot(landing.x-x,landing.z-z)*.3;
+      if(!best||score<best.score)best={x,z,score};
+    }
+    if(best){b.x=best.x;b.z=best.z;b.update(0,null);}
+  }
   return {
     boats, npcs,
     group: boats.reduce((g, b) => (g.add(b.group), g), new Group()),

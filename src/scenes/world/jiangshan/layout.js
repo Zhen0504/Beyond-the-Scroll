@@ -115,6 +115,8 @@ export const STRUCTURES = {
   dock: { x: 158, z: 18, angle: -0.2, length: 14 },
   // 可登的船（fisher 为渔人之舟，不可登）
   boats: [
+    { x: -28.5, z: -70, angle: Math.PI/2, canopy: false, waterfall: 0 },
+    { x: 161, z: -66, angle: Math.PI/2, canopy: false, waterfall: 1 },
     { x: -232, z: 17, angle: 0.1, canopy: false },
     { x: -30, z: -20, angle: 0.4, canopy: true },
     { x: 151, z: 5, angle: 1.2, canopy: true },

@@ -3,6 +3,7 @@ import { buildJiangshanWorld } from './jiangshan/index.js';
 import { buildHanxizaiWorld } from './hanxizai/index.js';
 import { buildFuwangWorld } from './fuwang/index.js';
 import ScrollGuide from './hanxizai/ScrollGuide.jsx';
+import NavigationHints from './jiangshan/NavigationHints.jsx';
 import BridgePoetry from './jiangshan/BridgePoetry.jsx';
 import FuwangGuide from './fuwang/FuwangGuide.jsx';
 import RegionMusicControl from './jiangshan/RegionMusicControl.jsx';
@@ -195,6 +196,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         </div>
       )}
 
+      {paintingId === 'jiangshan-qiuse' && worldRef.current && <NavigationHints world={worldRef.current} playing={status === 'playing' && !poetryActive} />}
       {paintingId === 'jiangshan-qiuse' && worldRef.current && <BridgePoetry world={worldRef.current} playing={status === 'playing'} onActive={setPoetryActive} />}
 
       {status === 'error' && (

@@ -13,7 +13,7 @@ export default function BridgePoetry({world,playing,onActive}) {
  useEffect(()=>{if(open)root.current?.querySelector('button')?.focus();},[open,poem]);
  useEffect(()=>()=>{if(opened.current)world?.endPoetry();},[world]);
  function choose(p){try{setShot(world.capturePoetry());setPoem(p);}catch(err){console.error(err);close();}}
- if(!open)return playing&&near?<div className="bridge-poetry-hint"><kbd>F</kbd> {near.hint} <span>留此景，寄此情</span></div>:null;
+ if(!open)return null;
  return <section ref={root} className={`bridge-poetry ${poem?'bridge-poetry--verse':''}`} role="dialog" aria-modal="true" aria-labelledby="bridge-poetry-title">
   {shot&&<img className="bridge-poetry-backdrop" src={shot} alt=""/>}
   <div className="bridge-poetry-wash"/>

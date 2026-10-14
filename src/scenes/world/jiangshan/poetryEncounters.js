@@ -97,16 +97,16 @@ export const POETRY_ENCOUNTERS=[
 ];
 
 /** Resolve actual world positions, including boat children, and reject hidden/offscreen actors. */
-export function nearestPoetryEncounter({npcs,camera,vehicle,isVisible}) {
- let best=null,distance=8;
+export function nearestPoetryEncounter({npcs,camera,vehicle,isVisible,range=8,allowLandFromBoat=false,requireInView=true}) {
+ let best=null,distance=range;
  const p=new Vector3(),screen=new Vector3();
  for(const encounter of POETRY_ENCOUNTERS){
-  if(vehicle&&!encounter.onBoat)continue;
+  if(vehicle&&!encounter.onBoat&&!allowLandFromBoat)continue;
   for(const npc of npcs){
    if(!encounter.npcIds.includes(npc.def.id)||!npc.root.visible)continue;
    npc.root.getWorldPosition(p);p.y+=npc.headY*.7;
    const d=p.distanceTo(camera.position);if(d>=distance)continue;
-   screen.copy(p).project(camera);if(screen.z<=-1||screen.z>=1||Math.abs(screen.x)>.9||Math.abs(screen.y)>.95)continue;
+   if(requireInView){screen.copy(p).project(camera);if(screen.z<=-1||screen.z>=1||Math.abs(screen.x)>.9||Math.abs(screen.y)>.95)continue;}
    if(!isVisible(npc))continue;
    best=encounter;distance=d;
   }

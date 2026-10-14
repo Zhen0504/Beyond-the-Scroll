@@ -4,6 +4,7 @@ import { FirstPersonController } from '../../../engine/FirstPersonController.js'
 import { PaintRenderer } from '../../../engine/PaintRenderer.js';
 import { WalkMap } from '../../../engine/WalkMap.js';
 import { createArchitecture, createHillBuildings } from './architecture.js';
+import { createBirds } from './birds.js';
 import { createBoats } from './boats.js';
 import { nearestPoetryEncounter } from './poetryEncounters.js';
 import { createChatter } from './chatter.js';
@@ -163,6 +164,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
   scene.add(boats.group);
   const leaves = createDriftLeaves({ heightAt });
   scene.add(leaves.mesh);
+  const birds=createBirds({atmosphere});scene.add(birds.mesh);
 
   // 近裁剪面取 0.2：深度精度提高一倍，远处房屋细部不易闪烁
   const camera = new PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.2, 4000);
@@ -249,6 +251,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
     chatter?.update(sceneDt);
     music.update(camera.position.x, chatter?.isReading ?? false);
     leaves.update(sceneDt, camera.position);
+    birds.update(sceneDt,camera);
     updatePrompt(dt);
 
     // 入场：由绢白中渐显
@@ -281,6 +284,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
   progress(1, '入画');
   return {
     nearestPoetry(){return nearestPoetryEncounter({npcs:[...figures.npcs,...boats.npcs],camera,vehicle:controller.vehicle,isVisible:n=>chatter?.isVisible(n)??true});},
+    nearbyPoetry(){return nearestPoetryEncounter({npcs:[...figures.npcs,...boats.npcs],camera,vehicle:controller.vehicle,isVisible:n=>chatter?.isVisible(n)??true,range:controller.vehicle?45:28,allowLandFromBoat:true,requireInView:false});},
     canReadBridge(){return this.nearestPoetry()?.id==='bridge';},
     beginPoetry(){poetryReading=true;controller.keys.clear();controller.unlock();music.setPlaying(true);},
     capturePoetry(){renderer.render(scene,camera);return canvas.toDataURL('image/png');},
@@ -288,7 +292,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
     get poetryReading(){return poetryReading;},
     controller,
     music,
-    boats,
+    boats, birds,
     figures, chatter,
     architecture:arch, hillBuildings:hills,
     camera,
@@ -309,6 +313,7 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
       controller.dispose();
       chatter?.dispose();
       figures.dispose();
+      birds.dispose();
       if(import.meta.env.DEV)delete window.__jiangshanInspect;
       scene.traverse((o) => {
         o.geometry?.dispose();
