@@ -60,10 +60,28 @@ export const paintings = [
     theme: { brocade: '#3a2836', ribbon: '#8f2e25', tag: '#43333c' },
   },
   {
-    id: 'scroll-3',
+    id: 'fuwang-bensheng',
     order: '叁',
-    title: '画卷待启',
-    available: false,
-    theme: { brocade: '#26324a', ribbon: '#5e4a2e', tag: '#333a4a' },
+    title: '鹿王本生',
+    available: true,
+    image: {
+      src: `${base}paintings/fuwang-bensheng/hanging.jpg`,
+      width: 1200,
+      height: 1050,
+    },
+    panorama: `${base}paintings/fuwang-bensheng/panorama.jpg`,
+    info: {
+      dynasty: '北魏',
+      artist: '佚名（敦煌莫高窟第257窟 西壁中段）',
+      medium: '壁画（泥壁设色）',
+      size: '横卷式连环画 · 原壁约 3.9 × 0.9 m',
+      collection: '敦煌莫高窟第257窟',
+      tags: ['石窟壁画', '九色鹿', '横卷连环画'],
+      summary:
+        '画九色鹿本生故事：鹿自恒河负溺水人出水，溺水人立誓不泄其踪，后见利忘义向国王告密，引王入山围猎；九色鹿无所畏惧，向国王陈其负恩，国王感悟而放鹿并下令护之。画面承汉画像石的横卷式构图，按两头开始、中间结束的顺序布局，是莫高窟开窟以来的全新构图形式。',
+      note: '壁画历经一千五百年，矿物色多已氧化褪变。此处敷彩为艺术转译，非原貌复原。',
+      credit: '图像：Wikimedia Commons（公有领域）· 释文：敦煌研究院网站',
+    },
+    theme: { brocade: '#3a2f24', ribbon: '#7d5340', tag: '#5a4a3a' },
   },
 ];

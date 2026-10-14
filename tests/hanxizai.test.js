@@ -33,11 +33,20 @@ import {
 const create = (aspect = 1.5, reducedMotion = false) =>
   new GuidedTour({
     camera: new PerspectiveCamera(48, aspect, 0.1, 100),
+    chapters: CHAPTERS,
     reducedMotion,
   });
 const settle = (t) => {
   for (let i = 0; i < 250; i++) t.update(0.02);
 };
+
+test("shared tour retains the night banquet chapter defaults", () => {
+  const tour = new GuidedTour({ camera: new PerspectiveCamera(48, 1.5, 0.1, 100) });
+  assert.equal(tour.chapter, CHAPTERS[0]);
+  tour.openChapter(CHAPTERS.at(-1).id);
+  assert.equal(tour.chapter, CHAPTERS.at(-1));
+  tour.dispose();
+});
 
 test("45 complete figures and all registered frames fit their real source and atlas canvas", () => {
   assert.equal(CAST.length, 45);
