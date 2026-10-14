@@ -16,7 +16,9 @@ function near(base, { dx = 0, dz = 0, dy = 0 } = {}) {
   const z = Math.max(MURAL.z + MIN_MURAL_VIEW_DIST, base.camera[2] + dz);
   return {
     camera: [base.camera[0] + dx, base.camera[1] + dy, z],
-    target: [base.target[0] + dx * 0.7, base.target[1], base.target[2]],
+    // 横向、纵向位移同步施加到相机和注视点，让镜头始终正对画面；
+    // 否则首尾画幅边缘会变成三角形，露出后方洞窟背景。
+    target: [base.target[0] + dx, base.target[1] + dy, base.target[2]],
   };
 }
 

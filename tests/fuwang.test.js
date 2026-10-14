@@ -55,6 +55,21 @@ test('机位兼顾折宽与完整画高，可视横跨足以容纳本折', () =>
   }
 });
 
+test('所有敷彩停点都正对壁画，首尾边缘不会因透视形成三角缺口', () => {
+  for (const chapter of CHAPTERS) {
+    for (const stop of chapter.stops) {
+      assert.ok(
+        Math.abs(stop.camera[0] - stop.target[0]) < 1e-6,
+        `${chapter.name} 的横向机位必须正对注视点`,
+      );
+      assert.ok(
+        Math.abs(stop.camera[1] - stop.target[1]) < 1e-6,
+        `${chapter.name} 的纵向机位必须正对注视点`,
+      );
+    }
+  }
+});
+
 test('stopsForFold 对任意区间都给出有效机位', () => {
   for (const [a, b] of [[0, 0.05], [0, 1], [0.9, 1], [0.5, 0.51]]) {
     const s = stopsForFold(a, b);
