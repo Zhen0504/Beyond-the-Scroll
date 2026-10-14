@@ -17,7 +17,8 @@ import { MURAL, PIGMENTS } from './layout.js';
 /**
  * 壁画材质与敷彩系统。
  *
- * 两态：残损褪色态 ↔ 重彩复原态。复原由观众的实际笔触累积驱动，不是简单淡入。
+ * 两态：残损褪色态 ↔ 重彩显影态。观众按矿物色逐层开启，观察各色层
+ * 如何共同构成画面；这不是自由填色，也不声称复原壁画原貌。
  *
  * 画面要素力求贴近第257窟壁画的真实观感：
  *   · 土红（赭石）为地色，其上敷石青、石绿、朱砂、蛤白；
@@ -106,6 +107,18 @@ uniform float uFold1;
 uniform float uFold2;
 uniform float uFold3;
 uniform float uFold4;
+// 每折六类综合色层的开关：石青、石绿、朱砂、土红、白色、墨色。
+// 它们表达艺术化的色层显影，不承担对原壁画颜料区域的自动识别。
+uniform vec4 uLayer0;
+uniform vec4 uLayer1;
+uniform vec4 uLayer2;
+uniform vec4 uLayer3;
+uniform vec4 uLayer4;
+uniform vec2 uNeutral0;
+uniform vec2 uNeutral1;
+uniform vec2 uNeutral2;
+uniform vec2 uNeutral3;
+uniform vec2 uNeutral4;
 // 当前折各形体的蒙版槽位。
 // xy = 该形体包围盒的左下角，zw = 包围盒尺寸（壁画 uv）
 uniform vec4 uShapeBounds[8];
@@ -175,21 +188,79 @@ void main() {
   float paintMask = paint.r;
   float pigIndex = paint.g;
 
+  // 五折只负责叙事与交互分段，画面上不出现硬切接缝。
+  // 每道折界两侧约 1.8% 画幅内渐变衔接，避免一折显影后形成矩形色块。
+  const float foldFeather = 0.018;
   float foldProgress = uFold0;
-  if (uv.x >= 0.135) foldProgress = uFold1;
-  if (uv.x >= 0.30) foldProgress = uFold2;
-  if (uv.x >= 0.62) foldProgress = uFold3;
-  if (uv.x >= 0.82) foldProgress = uFold4;
+  vec4 activeLayers = uLayer0;
+  vec2 activeNeutrals = uNeutral0;
+  float foldBlend = smoothstep(0.210 - foldFeather, 0.210 + foldFeather, uv.x);
+  foldProgress = mix(foldProgress, uFold1, foldBlend);
+  activeLayers = mix(activeLayers, uLayer1, foldBlend);
+  activeNeutrals = mix(activeNeutrals, uNeutral1, foldBlend);
+  foldBlend = smoothstep(0.340 - foldFeather, 0.340 + foldFeather, uv.x);
+  foldProgress = mix(foldProgress, uFold2, foldBlend);
+  activeLayers = mix(activeLayers, uLayer2, foldBlend);
+  activeNeutrals = mix(activeNeutrals, uNeutral2, foldBlend);
+  foldBlend = smoothstep(0.660 - foldFeather, 0.660 + foldFeather, uv.x);
+  foldProgress = mix(foldProgress, uFold3, foldBlend);
+  activeLayers = mix(activeLayers, uLayer3, foldBlend);
+  activeNeutrals = mix(activeNeutrals, uNeutral3, foldBlend);
+  foldBlend = smoothstep(0.840 - foldFeather, 0.840 + foldFeather, uv.x);
+  foldProgress = mix(foldProgress, uFold4, foldBlend);
+  activeLayers = mix(activeLayers, uLayer4, foldBlend);
+  activeNeutrals = mix(activeNeutrals, uNeutral4, foldBlend);
 
-  float amount = max(paintMask, foldProgress);
-  float cover = smoothstep(0.0, 0.85, clamp(amount, 0.0, 1.0));
+  // 不做“这块必须是哪种颜料”的硬识别，而按原图色相计算连续软权重。
+  // 因此石青、石绿不会顺带提亮红色地仗，也不会出现框选式的矩形边缘。
+  float hi = max(raw.r, max(raw.g, raw.b));
+  float lo = min(raw.r, min(raw.g, raw.b));
+  float chroma = hi - lo;
+  float chromaGate = smoothstep(0.025, 0.19, chroma);
+
+  // 青、绿使用互相重叠的软区间，以适应壁画矿物色风化后的综合色相；
+  // 朱砂与土红按亮度区分，仍允许少量自然过渡。
+  float blueAffinity = smoothstep(0.01, 0.14, raw.b - raw.r) * chromaGate;
+  float greenAffinity = smoothstep(0.005, 0.13, raw.g - raw.r) * chromaGate;
+  float warmAffinity = smoothstep(0.015, 0.16, raw.r - max(raw.g, raw.b)) * chromaGate;
+  float vermilionAffinity = warmAffinity * smoothstep(0.30, 0.58, lum + chroma * 0.45);
+  float earthAffinity = warmAffinity * (1.0 - smoothstep(0.58, 0.82, lum + chroma * 0.20));
+  // 白色层提亮低彩度的浅色形体；墨线层只加深低彩度暗线，两者也采用软权重。
+  float whiteAffinity = (1.0 - smoothstep(0.07, 0.24, chroma)) * smoothstep(0.48, 0.80, lum);
+  float inkAffinity = (1.0 - smoothstep(0.08, 0.30, chroma))
+    * smoothstep(0.10, 0.24, lum)
+    * (1.0 - smoothstep(0.32, 0.53, lum));
+
+  vec4 localLayers = activeLayers * vec4(
+    blueAffinity, greenAffinity, vermilionAffinity, earthAffinity
+  );
+  vec2 localNeutrals = activeNeutrals * vec2(whiteAffinity, inkAffinity);
+  float localLayerCount = dot(localLayers, vec4(1.0)) + dot(localNeutrals, vec2(1.0));
+  float hasLayer = step(0.02, localLayerCount);
+  vec3 mineralTone = (
+      localLayers.x * vec3(0.247, 0.435, 0.573) +
+      localLayers.y * vec3(0.435, 0.612, 0.478) +
+      localLayers.z * vec3(0.659, 0.267, 0.227) +
+      localLayers.w * vec3(0.561, 0.290, 0.208) +
+      localNeutrals.x * vec3(0.878, 0.851, 0.776) +
+      localNeutrals.y * vec3(0.169, 0.149, 0.125)
+    ) / max(localLayerCount, 1.0);
+
+  float selectiveReveal = max(
+    max(activeLayers.x * blueAffinity, activeLayers.y * greenAffinity),
+    max(
+      max(activeLayers.z * vermilionAffinity, activeLayers.w * earthAffinity),
+      max(activeNeutrals.x * whiteAffinity, activeNeutrals.y * inkAffinity)
+    )
+  );
+  // 完成状态只用于界面和释文解锁，不再偷偷补显其他颜色。
+  // 六个色层完全由各自开关控制，避免最后点击的颜色成为“万能开关”。
+  float cover = selectiveReveal;
+  cover = smoothstep(0.0, 0.88, clamp(cover, 0.0, 1.0));
 
   // 完成度本身也带一点颗粒，避免整折"均匀淡入"的塑料感
   float coverGrain = 0.88 + fuwangFbm(vec2(uv.x * 5.83, uv.y) * 46.0 + 3.0, 3) * 0.24;
   cover *= coverGrain;
-
-  vec3 mineral = vec3(uPigmentR, uPigmentG, uPigmentB);
-  mineral *= 0.88 + pigIndex * 0.24;
 
   vec3 rich = raw;
   rich = mix(vec3(lum), rich, 1.45);      // 显著提高饱和度
@@ -197,22 +268,13 @@ void main() {
   rich *= 1.12;
   rich *= 1.0 - lost * 0.12 - crack * 0.10;
 
-  // 两路复原，按「是否真的落过笔」分离 —— 这是修掉"全屏颜色暗示"的关键：
-  //   · 落笔处：矿物色覆盖（看得出用了哪种色，也有笔触颗粒）
-  //   · 未落笔处：只把原画色彩提回来，绝不掺入当前颜料的颜色
-  // 早先两者都经过同一路混色，导致只要某折有进度，整折就被当前颜料染一遍。
-  vec3 mineralLayer = mix(rich, mineral, 0.52);
+  // 早期色层更容易读出矿物色调；接近完成时让原画自身颜色重新成为主角。
+  float tintStrength = hasLayer * mix(0.20, 0.07, cover);
+  vec3 mineralLayer = mix(rich, rich * 0.84 + mineralTone * 0.32, tintStrength);
   float mineralGrain = fuwangFbm(vec2(uv.x * 5.83, uv.y) * 190.0 + 7.0, 3);
   mineralLayer = mix(mineralLayer, mineralLayer * (0.94 + mineralGrain * 0.14), 0.6);
 
-  float brush = clamp(paintMask * 1.6, 0.0, 1.0);   // 仅落笔处
-  vec3 restored = mix(rich, mineralLayer, brush);
-
-  vec3 col = mix(faded, restored, cover);
-
-  // 笔触湿边：同样只出现在落笔处
-  float edge = smoothstep(0.04, 0.32, paintMask) * (1.0 - smoothstep(0.30, 0.66, paintMask));
-  col += vec3(0.11, 0.095, 0.07) * edge * 0.55 * brush;
+  vec3 col = mix(faded, mineralLayer, cover);
 
   /* ---- 四、壁画本身不再做任何提示 ----
    *
@@ -305,7 +367,6 @@ uniform sampler2D uPrev;    // 已有的累积贴图
 uniform vec2 uMaskGrid;     // 单个蒙版槽位在图集 uv 上所占比例
 uniform vec2 uMaskPad;      // 槽内留边（占槽位比例）
 uniform vec2 uMaskData;     // 数据区（占槽位比例）
-uniform float uAxisX;       // 1 = 本趟沿 u 轴，0 = 沿 v 轴
 uniform vec4 uBox;          // 该形体的包围盒（壁画 uv）
 uniform float uSlot;        // 该形体在图集中的槽位号
 uniform float uIndex;       // 颜料序号
@@ -313,14 +374,10 @@ uniform float uIndex;       // 颜料序号
 varying vec2 vUv;
 
 void main() {
-  // vUv 扫过整张贴图；沿哪个轴画由 uAxisX 决定
-  vec2 uv;
-  if (uAxisX > 0.5) {
-    uv = vec2(mix(uBox.x, uBox.z, vUv.x), mix(uBox.y, uBox.w, vUv.y));
-  } else {
-    uv = vec2(mix(uBox.x, uBox.z, vUv.y), mix(uBox.y, uBox.w, vUv.x));
-  }
-
+  // 每个输出像素就是壁画上的同一 uv；只有落在形体包围盒内的像素
+  // 才进一步采样该形体的蒙版。此前把整张画布反向映射进包围盒，
+  // 会把色层写到错误位置，界面显示完成而画面几乎不变化。
+  vec2 uv = vUv;
   vec4 prev = texture2D(uPrev, vUv);
 
   vec2 local = (uv - uBox.xy) / max(uBox.zw, vec2(1e-6));
@@ -383,6 +440,16 @@ export function createMuralMaterial({ map, atmosphere }) {
       uFold2: { value: 0 },
       uFold3: { value: 0 },
       uFold4: { value: 0 },
+      uLayer0: { value: new Vector4(0, 0, 0, 0) },
+      uLayer1: { value: new Vector4(0, 0, 0, 0) },
+      uLayer2: { value: new Vector4(0, 0, 0, 0) },
+      uLayer3: { value: new Vector4(0, 0, 0, 0) },
+      uLayer4: { value: new Vector4(0, 0, 0, 0) },
+      uNeutral0: { value: new Vector2(0, 0) },
+      uNeutral1: { value: new Vector2(0, 0) },
+      uNeutral2: { value: new Vector2(0, 0) },
+      uNeutral3: { value: new Vector2(0, 0) },
+      uNeutral4: { value: new Vector2(0, 0) },
       uTime: { value: 0 },
       uReveal: { value: 1 },
       ...atmosphere,
@@ -411,7 +478,9 @@ export class PaintCanvas {
     ];
     this.flip = 0;
     this.quadScene = new Scene();
-    this.quadCam = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.quadCam = new OrthographicCamera(-1, 1, 1, -1, 0.01, 10);
+    this.quadCam.position.z = 1;
+    this.quadCam.updateMatrixWorld();
     this.material = new ShaderMaterial({
       vertexShader: STAMP_VERT,
       fragmentShader: STAMP_FRAG,
@@ -457,7 +526,6 @@ export class PaintCanvas {
         uMaskPad: { value: new Vector2(8 / 512, 8 / 256) },
         uMaskData: { value: new Vector2(496 / 512, 240 / 256) },
         uMaskCols: { value: 5 },
-        uAxisX: { value: 1 },
         uBox: { value: new Vector4(0, 0, 1, 1) },
         uSlot: { value: 0 },
         uIndex: { value: 0 },
@@ -527,10 +595,8 @@ export class PaintCanvas {
   /**
    * 认形敷彩：把某个形体整体写进累积贴图。
    *
-   * 画布远宽于高，沿 u 轴一趟会有严重的各向异性损耗，所以分两趟 ——
-   * 第一趟沿 u 轴（画布宽向 = 壁画 u 向，采样充足），覆盖整个 v 范围；
-   * 第二趟沿 v 轴补足 u 方向。两趟在着色器里取 max，交界处不出接缝，
-   * 也不会覆盖先前已敷上的形体。
+   * 以整张累积贴图的 uv 为坐标，只在形体包围盒内采样蒙版；
+   * 其余像素原样复制上一帧，因此各矿物色层可以可靠叠加。
    */
   fillShape(shape, index, opts = {}) {
     if (!this.maskTexture) return false;
@@ -546,15 +612,12 @@ export class PaintCanvas {
     u.uIndex.value = index;
 
     const prevTarget = this.renderer.getRenderTarget();
-    for (const axis of [1, 0]) {
-      const src = this.targets[this.flip];
-      const dst = this.targets[1 - this.flip];
-      u.uPrev.value = src.texture;
-      u.uAxisX.value = axis;
-      this.renderer.setRenderTarget(dst);
-      this.renderer.render(this.fillScene, this.quadCam);
-      this.flip = 1 - this.flip;
-    }
+    const src = this.targets[this.flip];
+    const dst = this.targets[1 - this.flip];
+    u.uPrev.value = src.texture;
+    this.renderer.setRenderTarget(dst);
+    this.renderer.render(this.fillScene, this.quadCam);
+    this.flip = 1 - this.flip;
     this.renderer.setRenderTarget(prevTarget);
     return true;
   }

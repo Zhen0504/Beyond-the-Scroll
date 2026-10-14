@@ -32,11 +32,15 @@ test('五折的 u 区间首尾相接，覆盖整幅横卷且不重叠', () => {
   for (const f of FOLDS) assert.ok(f.u1 > f.u0, `${f.name} 区间应为正`);
 });
 
-test('每折机位对准本折区段', () => {
-  for (const f of FOLDS) {
-    const wantX = uToX((f.u0 + f.u1) / 2);
-    assert.ok(Math.abs(f.camera[0] - wantX) < 1e-6, `${f.name} 机位应正对本折中心`);
-    assert.ok(Math.abs(f.target[0] - wantX) < 1e-6, `${f.name} 注视点应落在本折中心`);
+test('每折机位落在本折内，首末折向画内收以免露出洞窟侧墙', () => {
+  for (const [i, f] of FOLDS.entries()) {
+    const targetU = f.target[0] / MURAL.width + 0.5;
+    assert.ok(targetU >= f.u0 && targetU <= f.u1, `${f.name} 注视点应落在本折范围内`);
+    assert.ok(Math.abs(f.camera[0] - f.target[0]) < 1e-6, `${f.name} 机位应正对注视点`);
+    if (i > 0 && i < FOLDS.length - 1) {
+      const wantX = uToX((f.u0 + f.u1) / 2);
+      assert.ok(Math.abs(f.target[0] - wantX) < 1e-6, `${f.name} 应正对本折中心`);
+    }
     assert.equal(f.target[2], MURAL.z);
   }
 });
@@ -145,11 +149,12 @@ test('每一折都有形体，且都用到至少三种颜色', () => {
   }
 });
 
-test('四种矿物色都被用到，不会有点了没处敷的颜色', () => {
+test('四种历史主色都有形体映射，另有白色与墨线两个综合色层', () => {
   const used = new Set(SHAPES.map((s) => s.p));
-  for (const key of PIGMENT_KEYS) {
+  for (const key of PIGMENT_KEYS.slice(0, 4)) {
     assert.ok(used.has(key), `${pigmentName(key)} 从未被任何形体使用 —— 观众点了会困惑`);
   }
+  assert.deepEqual(PIGMENT_KEYS.slice(4), ['baise', 'mose']);
 });
 
 test('单折形体数不超过着色器上限', () => {
@@ -236,6 +241,14 @@ function makeUniforms() {
     uFold2: { value: 0 },
     uFold3: { value: 0 },
     uFold4: { value: 0 },
+    ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [
+      `uLayer${i}`,
+      { value: { x: 0, y: 0, z: 0, w: 0, set(x, y, z, w) { Object.assign(this, { x, y, z, w }); } } },
+    ])),
+    ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [
+      `uNeutral${i}`,
+      { value: { x: 0, y: 0, set(x, y) { Object.assign(this, { x, y }); } } },
+    ])),
     uShapeBounds: {
       value: Array.from({ length: MAX_ACTIVE_SHAPES }, () => ({
         x: 0, y: 0, z: 0, w: 0,
@@ -298,11 +311,10 @@ test('再点同一种颜色：整体还原', () => {
   assert.ok(events.some((e) => e.type === 'color-off' && e.pigment === 'shilv'));
 });
 
-test('四种颜色各自独立：点其中一种不影响其余', () => {
+test('六个色层各自独立：点其中一种不影响其余', () => {
   const { r } = makeRestorer();
   r.setFold(0);
-  const used = PIGMENTS.filter((p) => r.shapesOf(p.id).length > 0);
-  assert.ok(used.length >= 3, '第一折应至少用到三种颜色');
+  const used = PIGMENTS;
 
   r.togglePigment(used[0].id);
   for (const p of used.slice(1)) assert.equal(r.isOn(p.id), false, `${p.name}不应被牵动`);
@@ -312,36 +324,34 @@ test('四种颜色各自独立：点其中一种不影响其余', () => {
   assert.equal(r.isOn(used[1].id), true);
 });
 
-test('本折不用的颜色点了不生效，并给出说明', () => {
-  const { r, events } = makeRestorer();
-  r.setFold(0);
-  const unused = PIGMENTS.find((p) => r.shapesOf(p.id).length === 0);
-  if (!unused) return;   // 该折四种色都用到了，跳过
-  assert.equal(r.togglePigment(unused.id), 'empty');
-  assert.equal(r.filled.size, 0);
-  assert.ok(events.some((e) => e.type === 'no-such-color'));
-});
-
-test('进度按「已敷上的形体数 / 本折形体数」计', () => {
+test('六个色层在每折均可切换，未知颜色不生效', () => {
   const { r } = makeRestorer();
   r.setFold(0);
-  const list = r.shapes;
+  assert.equal(r.togglePigment('baise'), 'on');
+  assert.equal(r.isOn('baise'), true);
+  assert.equal(r.togglePigment('mose'), 'on');
+  assert.equal(r.isOn('mose'), true);
+  assert.equal(r.togglePigment('not-a-pigment'), 'empty');
+});
+
+test('进度按「已显色层数 / 六类色层」计', () => {
+  const { r } = makeRestorer();
+  r.setFold(0);
+  const used = PIGMENTS;
   assert.equal(r.progress[0], 0);
 
-  const first = list[0];
-  r.togglePigment(first.p);
-  const n = r.shapesOf(first.p).length;
-  assert.ok(Math.abs(r.progress[0] - n / list.length) < 1e-9, '按形体数折算');
+  r.togglePigment(used[0].id);
+  assert.ok(Math.abs(r.progress[0] - 1 / used.length) < 1e-9, '每种色调等权推进');
 
   for (const p of PIGMENTS) if (!r.isOn(p.id)) r.togglePigment(p.id);
-  assert.equal(r.progress[0], 1, '四色都点上应为 100%');
+  assert.equal(r.progress[0], 1, '六个色层都点上应为 100%');
   assert.ok(r.done >= 1);
 });
 
 test('本折颜色种数与已敷色数可统计，供界面显示', () => {
   const { r } = makeRestorer();
   r.setFold(0);
-  const total = PIGMENTS.filter((p) => r.shapesOf(p.id).length > 0).length;
+  const total = PIGMENTS.length;
   assert.equal(r.colorsTotal, total);
   assert.equal(r.colorsOn, 0);
   r.togglePigment(PIGMENTS.find((p) => r.shapesOf(p.id).length > 0).id);
@@ -463,6 +473,32 @@ test('全部进度上传材质，切折后已完成区段保持重彩', () => {
   r.setFold(0);
   assert.ok(uniforms.uFold0.value >= 1, '切折后第一折仍应保持重彩');
   assert.equal(uniforms.uHoverU0.value, FOLDS[0].u0);
+});
+
+test('矿物色调开关直接上传各折材质，不依赖画面颜色识别', () => {
+  const { r, uniforms } = makeRestorer();
+  r.setFold(0);
+  const used = PIGMENTS.find((p) => r.shapesOf(p.id).length > 0);
+  const component = ['x', 'y', 'z', 'w'][PIGMENTS.indexOf(used)];
+  assert.equal(uniforms.uLayer0.value[component], 0);
+  r.togglePigment(used.id);
+  assert.equal(uniforms.uLayer0.value[component], 1);
+  r.togglePigment(used.id);
+  assert.equal(uniforms.uLayer0.value[component], 0);
+});
+
+test('白色与墨线层通过独立材质通道上传', () => {
+  const { r, uniforms } = makeRestorer();
+  r.setFold(0);
+  r.togglePigment('baise');
+  assert.equal(uniforms.uNeutral0.value.x, 1);
+  assert.equal(uniforms.uNeutral0.value.y, 0);
+  r.togglePigment('mose');
+  assert.equal(uniforms.uNeutral0.value.x, 1);
+  assert.equal(uniforms.uNeutral0.value.y, 1);
+  r.togglePigment('baise');
+  assert.equal(uniforms.uNeutral0.value.x, 0);
+  assert.equal(uniforms.uNeutral0.value.y, 1);
 });
 
 /* ================= 素材与授权 ================= */

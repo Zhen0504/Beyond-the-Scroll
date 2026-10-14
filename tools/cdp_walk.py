@@ -26,6 +26,7 @@ for cand in (
 PORT = 9335
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "shots3")
+SITE_URL = os.environ.get("FUWANG_SITE_URL", "http://127.0.0.1:5199/#fuwang")
 
 
 def http_json(path):
@@ -161,7 +162,7 @@ def main() -> int:
         ws.call("Runtime.enable")
 
         # 直接从卷三入口进（更稳，也顺带验证哈希路由）
-        ws.call("Page.navigate", {"url": "http://127.0.0.1:5199/#fuwang"})
+        ws.call("Page.navigate", {"url": SITE_URL})
         time.sleep(16)
 
         state = ws.js(
@@ -182,26 +183,15 @@ def main() -> int:
         time.sleep(5)
         ws.shot("51-fuwang-02-paint")
 
-        # 模拟一次拖拽敷彩：在画布中部横向拖过
-        drag = ws.js(
+        # 当前机制为「逐层显影」：依次点亮本折六类综合色层
+        reveal = ws.js(
             """(() => {
-              const c = document.querySelector('canvas');
-              if (!c) return 'no-canvas';
-              const r = c.getBoundingClientRect();
-              const y = r.top + r.height * 0.5;
-              const mk = (type, x) => new PointerEvent(type, {
-                bubbles: true, cancelable: true, clientX: x, clientY: y,
-                pointerId: 1, pointerType: 'mouse', buttons: type === 'pointerup' ? 0 : 1,
-              });
-              c.dispatchEvent(mk('pointerdown', r.left + r.width * 0.30));
-              for (let i = 1; i <= 24; i++) {
-                window.dispatchEvent(mk('pointermove', r.left + r.width * (0.30 + 0.02 * i)));
-              }
-              window.dispatchEvent(mk('pointerup', r.left + r.width * 0.78));
-              return 'dragged';
+              const bs = [...document.querySelectorAll('.fuwang__swatch')];
+              bs.forEach((b) => b.click());
+              return `revealed:${bs.length}`;
             })()"""
         )
-        print("drag:", drag)
+        print("reveal:", reveal)
         time.sleep(4)
         ws.shot("52-fuwang-03-after-paint")
 

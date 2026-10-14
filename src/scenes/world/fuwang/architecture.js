@@ -513,11 +513,10 @@ export function createArchitecture({ walkMap }) {
     pieces.push(box(0.28, fh, 0.30, C.niche, s * (MURAL.width / 2 + 0.48), MURAL.cy, MURAL.z - 0.14, MAT.stone));
   }
 
-  // 前部人字披顶 + 后部平棋顶
+  // 导览镜头以壁画为绝对主体。人字披椽条在透视下会变成粗大的竖向矩形，
+  // 容易被误读为图像缺失，因此不放入正面观画视线；洞窟语境由侧壁、边框、
+  // 平棋顶和中心塔柱承担。
   const pillarZ = -3.6;
-  pieces.push(
-    ...gabledCeiling({ halfWidth: hw, z0: -1.2, z1: depth - MURAL.z, yTop: y1, ySide: y1 - 0.9 }),
-  );
   pieces.push(
     ...cofferedCeiling({ x0: -hw, x1: hw, z0: pillarZ + 1.1, z1: -1.2, y: y1, cols: 6, rows: 4 }),
   );

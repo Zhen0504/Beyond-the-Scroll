@@ -56,13 +56,22 @@ export function uToX(u) {
  * 再加 MARGIN 留出边距，使整段折区段都在画面内。
  */
 const FOLD_SPAN_PER_DIST = 0.1577;   // 实测：每单位距离可见的 u 宽度
-const MARGIN = 1.22;                 // 折区段两侧各留约一成边距
+const MARGIN = 1.10;                 // 只留少量呼吸边，避免画外洞窟被误读为内容缺失
+const EDGE_GUARD = 0.030;            // 补偿透视与实际视口差异，让首末折贴近屏幕边缘
 const EYE_Y = 1.70;                  // 视高：与人物主体齐平
 
 export function stopsForFold(u0, u1) {
   const spanU = Math.max(0.08, u1 - u0);
   const dist = Math.max(1.1, Math.min(3.3, (spanU * MARGIN) / FOLD_SPAN_PER_DIST));
-  const targetX = uToX((u0 + u1) / 2);
+  // 首、末折不能按区间中心直接取景，否则对称留边会越过壁画边缘，
+  // 把洞窟侧壁拍进画面。将视线中心限制在画幅内部，使可视范围始终落在横卷上。
+  const visibleSpanU = FOLD_SPAN_PER_DIST * dist;
+  const halfViewU = visibleSpanU / 2;
+  const targetU = Math.max(
+    halfViewU + EDGE_GUARD,
+    Math.min(1 - halfViewU - EDGE_GUARD, (u0 + u1) / 2),
+  );
+  const targetX = uToX(targetU);
   return {
     camera: [targetX, EYE_Y + 0.14, MURAL.z + dist],
     target: [targetX, EYE_Y - 0.06, MURAL.z],
@@ -100,6 +109,8 @@ export const PIGMENTS = [
   { id: "shilv", name: "石绿", hex: "#6f9c7a", hint: "层" },
   { id: "zhusha", name: "朱砂", hex: "#a8443a", hint: "层" },
   { id: "tuhong", name: "土红", hex: "#8f4a35", hint: "底" },
+  { id: "baise", name: "白色", hex: "#e0d9c6", hint: "层" },
+  { id: "mose", name: "墨色", hex: "#2b2620", hint: "线" },
 ];
 
 /** 颜料盘顺序（与色区映射共用） */

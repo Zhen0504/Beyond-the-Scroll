@@ -1,9 +1,6 @@
 import {
-  ClampToEdgeWrapping,
   Color,
-  LinearFilter,
   Mesh,
-  NoColorSpace,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
@@ -15,17 +12,16 @@ import { PaintRenderer } from '../../../engine/PaintRenderer.js';
 import { WalkMap } from '../../../engine/WalkMap.js';
 import { createArchitecture } from './architecture.js';
 import { GuidedTour } from '../hanxizai/GuidedTour.js';
-import { PaintCanvas, createMuralMaterial } from './mural.js';
+import { createMuralMaterial } from './mural.js';
 import { Restorer } from './restore.js';
 import { BOUNDS, FOLDS, MURAL, PIGMENTS } from './layout.js';
-import { MASK_COLS, MASK_ROWS } from './shapes.js';
 import { CHAPTERS } from './story.js';
 
 /**
  * 卷三《鹿王本生》画境。
  *
- * 与卷一卷二的差别：观众不是单纯漫游或观看，而是亲手让褪色的壁画逐层复原。
- * 敷彩过程为本项目的艺术转译，不是壁画绘制流程或文物修复工艺的复原。
+ * 与卷一卷二的差别：观众不是单纯漫游或观看，而是逐层唤起褪色壁画的重彩意象。
+ * 设色过程为本项目的艺术转译，不是颜料区域识别、壁画绘制流程或文物修复工艺的复原。
  */
 
 const TEX = `${import.meta.env.BASE_URL}paintings/fuwang-bensheng/`;
@@ -72,28 +68,6 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
   mural.name = 'mural';
   scene.add(mural);
 
-  // 形体蒙版图集：认形敷彩的依据（由 tools/build_shapes.py 生成）
-  const maskTex = await loader.loadAsync(`${TEX}masks.png`);
-  maskTex.colorSpace = NoColorSpace;
-  maskTex.minFilter = LinearFilter;
-  maskTex.magFilter = LinearFilter;
-  maskTex.generateMipmaps = false;
-  maskTex.wrapS = ClampToEdgeWrapping;
-  maskTex.wrapT = ClampToEdgeWrapping;
-  muralMat.uniforms.uMasks.value = maskTex;
-  muralMat.uniforms.uMaskGrid.value.set(1 / MASK_COLS, 1 / MASK_ROWS);
-  muralMat.uniforms.uMaskCols.value = MASK_COLS;
-
-  // 敷彩笔触累积画布：贴图保持画幅比例，避免横向被拉伸
-  const maxTex = renderer.renderer.capabilities?.maxTextureSize ?? 4096;
-  const paintW = Math.min(maxTex, 2048);
-  const paintCanvas = new PaintCanvas(renderer.renderer, {
-    width: paintW,
-    height: Math.max(256, Math.round((paintW * MURAL.texHeight) / MURAL.texWidth)),
-  });
-  paintCanvas.setMaskAtlas(maskTex, { cols: MASK_COLS, rows: MASK_ROWS });
-  muralMat.uniforms.uPaint.value = paintCanvas.read;
-
   progress(0.66, '敷彩 · 矿物入色');
   await nextFrame();
 
@@ -107,7 +81,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     renderer: renderer.renderer,
     camera,
     muralMesh: mural,
-    paintCanvas,
+    paintCanvas: null,
     folds: FOLDS,
     palette: PIGMENTS,
     onEvent: (e) => onEvent?.(e),
@@ -123,33 +97,16 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     },
   });
 
+  // 键盘换折必须同时驱动导览机位与敷彩状态；只改 Restorer 会造成
+  // 顶部折题、相机取景和底部色层盘三者错位。
+  restorer.onNavigate = (index) => controller.openChapter(CHAPTERS[index]?.id ?? CHAPTERS[0].id);
+
   restorer.attach(canvas);
   restorer.setFold(0);
 
   progress(0.92, '缀节 · 洞窟既成');
   await nextFrame();
   renderer.renderer.compile(scene, camera);
-
-  /**
-   * 笔刷大小：每帧读一次滑杆的值。
-   *
-   * 不挂事件监听 —— React 重渲染会替换 input 节点，监听器随之失效
-   * （曾导致滑杆拖不动）。改为轮询「当前节点」的值，与 React 无关。
-   */
-  let brushSeen = restorer.brush;
-  const syncBrushSlider = () => {
-    const el = document.querySelector('.fuwang__brush input');
-    if (!el) return;
-    const v = Number(el.value);
-    if (!Number.isFinite(v)) return;
-    if (Math.abs(v - brushSeen) > 1e-9) {
-      brushSeen = restorer.setBrush(v);
-    } else if (Math.abs(restorer.brush - brushSeen) > 1e-9) {
-      // 键盘 [ ] 改了笔刷 —— 同步回滑杆，界面与实际一致
-      brushSeen = restorer.brush;
-      el.value = String(brushSeen);
-    }
-  };
 
   let raf = 0;
   let last = performance.now();
@@ -179,9 +136,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     controller.reducedMotion = reducedMotion.matches;
     controller.update(dt);
     if (!paused) restorer.update();
-    syncBrushSlider();
     muralMat.uniforms.uTime.value = atmosphere.uTime.value;
-    muralMat.uniforms.uPaint.value = paintCanvas.read;
     renderer.postMaterial.uniforms.uFade.value = controller.fade * controller.fade;
     renderer.render(scene, camera);
 
@@ -204,7 +159,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     tour: controller,
     controller,
     restorer,
-    paintCanvas,
+    paintCanvas: null,
     mural,
     architecture: arch,
     camera,
@@ -229,8 +184,8 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
         chapter: controller.state.chapter,
         hit: hit ? { u: +hit.uv.x.toFixed(4), v: +hit.uv.y.toFixed(4) } : null,
         fold: restorer.index,
-        pigment: restorer.pigment,
-        brush: restorer.brush,
+        colorsOn: restorer.colorsOn,
+        colorsTotal: restorer.colorsTotal,
         progress: restorer.progress.map((p) => +p.toFixed(3)),
         uniforms: {
           uHover: muralMat.uniforms.uHover.value,
@@ -248,7 +203,6 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
       window.removeEventListener('resize', onResize);
       restorer.detach(canvas);
       controller.dispose();
-      paintCanvas.dispose();
       const materials = new Set();
       const textures = new Set([muralTex]);
       const geometries = new Set();

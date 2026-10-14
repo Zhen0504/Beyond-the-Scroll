@@ -20,7 +20,7 @@ spec.loader.exec_module(mod)
 
 PORT = int(os.environ.get("CDP_PORT", "0")) or (9650 + (os.getpid() % 300))
 PROFILE = os.path.join(HERE, f"_cdp_tog_{PORT}")
-URL = "http://127.0.0.1:5173/#fuwang"
+URL = os.environ.get("FUWANG_SITE_URL", "http://127.0.0.1:5173/#fuwang")
 OUT = os.path.join(HERE, "..", "shots3")
 
 
@@ -63,6 +63,13 @@ def main() -> int:
             if ws.js("document.querySelector('.night-primary') ? 'yes' : 'no'") == "yes":
                 break
         time.sleep(2)
+        # 逐层截图时关闭完成后的自动释文，避免弹窗遮住第六层画面。
+        ws.js("localStorage.setItem('fuwang:auto-lecture', 'off')")
+        ws.call("Page.reload")
+        for _ in range(40):
+            time.sleep(1)
+            if ws.js("document.querySelector('.night-primary') ? 'yes' : 'no'") == "yes":
+                break
         ws.js("document.querySelector('.night-primary')?.click()")
         # 等调色盘挂上
         ok = False
@@ -103,6 +110,11 @@ def main() -> int:
                 " line: document.querySelector('.fuwang__targetsline')?.textContent})"
             )
 
+        def delta(a, b):
+            aa = np.asarray(a).astype(np.float32)
+            bb = np.asarray(b).astype(np.float32)
+            return round(float(np.abs(aa - bb).mean()), 3)
+
         ws.js("document.querySelector('.night-primary')?.click()")
         # 等入场动画走完、调色盘挂上
         for _ in range(40):
@@ -121,7 +133,8 @@ def main() -> int:
         print("  引导是否开启:", ws.js("window.__world.mural.material.uniforms.uHover.value"))
 
         print("\n=== 逐个点颜色 ===")
-        for i, pid in enumerate(["shiqing", "shilv", "zhusha", "tuhong"]):
+        previous = base
+        for i, pid in enumerate(["shiqing", "shilv", "zhusha", "tuhong", "baise", "mose"]):
             ws.js(f"document.querySelectorAll('.fuwang__swatch')[{i}]?.click()")
             time.sleep(1.6)
             img = grab()
@@ -130,6 +143,8 @@ def main() -> int:
             print(f"  点 {pid:8s} → 已敷 {st['on']}")
             print(f"             调色盘 {st['labels']}  进度条 {st['meter']}")
             print(f"             画面均值 {mean(img)}")
+            print(f"             与上一步像素差 {delta(previous, img)}")
+            previous = img
 
         print("\n=== 再点第一种颜色 → 应还原 ===")
         ws.js("document.querySelectorAll('.fuwang__swatch')[0]?.click()")

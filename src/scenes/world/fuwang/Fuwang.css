@@ -13,6 +13,36 @@
   pointer-events: auto;
 }
 
+.fuwang .night-tour__utilities,
+.fuwang .night-plate__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.fuwang .night-tour__home,
+.fuwang .night-tour__original {
+  padding: 7px 10px;
+  border: 1px solid rgb(91 68 43 / 18%);
+  border-radius: 2px;
+  background: rgb(239 226 198 / 36%);
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.fuwang .night-tour__home:hover,
+.fuwang .night-tour__original:hover {
+  border-color: rgb(131 62 44 / 45%);
+  background: rgb(239 226 198 / 72%);
+  color: #833e2c;
+}
+
+.fuwang .night-plate__actions > button:not(.night-primary) {
+  padding: 10px 18px;
+  color: #6d5d43;
+  letter-spacing: 0.14em;
+}
+
 /* ---------- 底部颜料盘 ---------- */
 
 .fuwang__palette {
@@ -21,7 +51,7 @@
   bottom: 26px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: auto auto auto;
+  grid-template-columns: auto auto auto auto;
   align-items: center;
   gap: 0 18px;
   max-width: calc(100vw - 32px);
@@ -37,9 +67,29 @@
   font-family: var(--font-serif);
 }
 
+.fuwang__palette-title {
+  display: grid;
+  gap: 2px;
+  padding-right: 14px;
+  border-right: 1px solid rgb(201 168 106 / 24%);
+  white-space: nowrap;
+}
+
+.fuwang__palette-title span {
+  color: var(--gold-soft);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+.fuwang__palette-title small {
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+}
+
 .fuwang__swatches {
   display: grid;
-  grid-template-columns: repeat(4, auto);
+  grid-template-columns: repeat(6, auto);
   gap: 4px;
 }
 
@@ -98,11 +148,6 @@
   background: rgb(201 168 106 / 12%);
 }
 
-/* 本折不用这种颜色：压暗，避免观众白点 */
-.fuwang__swatch[data-empty] {
-  opacity: 0.4;
-}
-
 /* 这种颜色在本折已敷完 */
 .fuwang__swatch[data-clear] em {
   color: var(--gold-soft);
@@ -132,6 +177,18 @@
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--text-dim);
+}
+
+.fuwang__meter span {
+  display: grid;
+  gap: 2px;
+}
+
+.fuwang__meter small {
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
 }
 
 .fuwang__meter i {
@@ -238,6 +295,71 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.fuwang__feedback,
+.fuwang__fold-complete {
+  position: absolute;
+  left: 50%;
+  bottom: 116px;
+  transform: translateX(-50%);
+  margin: 0;
+  border: 1px solid rgb(201 168 106 / 36%);
+  border-left: 2px solid var(--gold);
+  border-radius: 3px;
+  background: rgb(8 10 11 / 88%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 36%);
+  color: var(--gold-soft);
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  animation: fuwang-hint-in 0.36s ease-out both;
+}
+
+.fuwang__feedback {
+  padding: 8px 18px;
+}
+
+.fuwang__feedback--compare {
+  border-left-color: #9a8060;
+  color: var(--text);
+}
+
+.fuwang__feedback--quiet {
+  border-left-color: var(--cinnabar);
+  color: var(--text-dim);
+}
+
+.fuwang__feedback--done {
+  border-left-color: var(--cinnabar);
+  color: var(--gold-soft);
+}
+
+.fuwang__fold-complete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 16px;
+}
+
+.fuwang__fold-complete span {
+  margin-right: 5px;
+}
+
+.fuwang__fold-complete button {
+  padding: 6px 10px;
+  border: 1px solid rgb(201 168 106 / 35%);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.fuwang__fold-complete button:hover,
+.fuwang__fold-complete button:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold-soft);
 }
 
 .fuwang__targetsline b[style] {
@@ -546,6 +668,38 @@
   color: #8f2f24;
 }
 
+.fuwang__auto-lecture {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0 14px;
+  padding: 11px 13px;
+  border: 1px solid rgb(92 80 68 / 22%);
+  border-radius: 3px;
+  background: rgb(255 252 245 / 38%);
+  color: #443b32;
+  font-size: 12px;
+  line-height: 1.55;
+  cursor: pointer;
+}
+
+.fuwang__auto-lecture input {
+  width: 15px;
+  height: 15px;
+  margin: 2px 0 0;
+  accent-color: #8f2f24;
+}
+
+.fuwang__auto-lecture span {
+  display: grid;
+  gap: 2px;
+}
+
+.fuwang__auto-lecture small {
+  color: #776958;
+  font-size: 11px;
+}
+
 .fuwang__sourceslink {
   border: none;
   background: none;
@@ -582,12 +736,21 @@
 
 @media (max-width: 860px) {
   .fuwang__palette {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px 14px;
+    width: calc(100vw - 20px);
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
     bottom: 14px;
     padding: 10px 12px;
-    max-width: calc(100vw - 20px);
+    box-sizing: border-box;
+  }
+
+  .fuwang__palette-title {
+    display: none;
+  }
+
+  .fuwang__swatches {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .fuwang__swatch {
@@ -601,7 +764,45 @@
   }
 
   .fuwang__hint {
-    bottom: 152px;
+    bottom: 190px;
     font-size: 12px;
+  }
+
+  .fuwang__targetsline,
+  .fuwang__feedback,
+  .fuwang__fold-complete {
+    bottom: 180px;
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .fuwang__swatch {
+    grid-template-columns: 16px 1fr;
+    padding: 5px 4px;
+  }
+
+  .fuwang__swatch b {
+    width: 16px;
+    height: 16px;
+  }
+
+  .fuwang__swatch span {
+    font-size: 11px;
+  }
+
+  .fuwang__swatch em,
+  .fuwang__meter small,
+  .fuwang .night-tour__utilities kbd {
+    display: none;
+  }
+
+  .fuwang__fold-complete {
+    width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+    box-sizing: border-box;
   }
 }
