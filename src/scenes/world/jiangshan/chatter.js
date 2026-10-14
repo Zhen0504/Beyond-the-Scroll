@@ -127,5 +127,5 @@ export function createChatter({ npcs, camera, container, scene }) {
     occlusion.dispose();
   }
 
-  return { update, dispose, occlusion, get isReading() { return isReading; } };
+  return { update, dispose, occlusion, isVisible:unobstructed, get isReading() { return isReading; } };
 }

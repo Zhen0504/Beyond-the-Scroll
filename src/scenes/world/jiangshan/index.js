@@ -5,6 +5,7 @@ import { PaintRenderer } from '../../../engine/PaintRenderer.js';
 import { WalkMap } from '../../../engine/WalkMap.js';
 import { createArchitecture, createHillBuildings } from './architecture.js';
 import { createBoats } from './boats.js';
+import { nearestPoetryEncounter } from './poetryEncounters.js';
 import { createChatter } from './chatter.js';
 import { RegionMusic } from './RegionMusic.js';
 import { createPaintedFigures } from './paintedFigures.js';
@@ -200,8 +201,9 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
     urls: ZONES.map(z => `${import.meta.env.BASE_URL}paintings/jiangshan-qiuse/music/${z.name}.mp3`),
     boundaries: ZONES.slice(0, -1).map(z => z.maxX),
   });
+  let poetryReading=false;
   const controller = new FirstPersonController({ camera, dom: canvas, walkMap, spawn: SPAWN,
-    onLockChange: (locked) => { music.setPlaying(locked); onLockChange?.(locked); }, onInteract: interact });
+    onLockChange: (locked) => { music.setPlaying(locked||poetryReading); onLockChange?.(locked); }, onInteract: interact });
   let promptTimer = 0;
   const updatePrompt = (dt) => {
     promptTimer -= dt;
@@ -239,13 +241,14 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    atmosphere.uTime.value += dt;
-    controller.update(dt);
-    boats.update(dt, controller.vehicle);
-    figures.update(dt, camera.position);
-    chatter?.update(dt);
+    const sceneDt=poetryReading?0:dt;
+    atmosphere.uTime.value += sceneDt;
+    if(!poetryReading)controller.update(dt);
+    boats.update(sceneDt, controller.vehicle);
+    figures.update(sceneDt, camera.position);
+    chatter?.update(sceneDt);
     music.update(camera.position.x, chatter?.isReading ?? false);
-    leaves.update(dt, camera.position);
+    leaves.update(sceneDt, camera.position);
     updatePrompt(dt);
 
     // 入场：由绢白中渐显
@@ -277,6 +280,12 @@ export async function buildJiangshanWorld({ canvas, overlay, onProgress, onLockC
 
   progress(1, '入画');
   return {
+    nearestPoetry(){return nearestPoetryEncounter({npcs:[...figures.npcs,...boats.npcs],camera,vehicle:controller.vehicle,isVisible:n=>chatter?.isVisible(n)??true});},
+    canReadBridge(){return this.nearestPoetry()?.id==='bridge';},
+    beginPoetry(){poetryReading=true;controller.keys.clear();controller.unlock();music.setPlaying(true);},
+    capturePoetry(){renderer.render(scene,camera);return canvas.toDataURL('image/png');},
+    endPoetry(){poetryReading=false;music.setPlaying(controller.locked);},
+    get poetryReading(){return poetryReading;},
     controller,
     music,
     boats,

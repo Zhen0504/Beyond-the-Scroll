@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { buildJiangshanWorld } from './jiangshan/index.js';
 import { buildHanxizaiWorld } from './hanxizai/index.js';
 import ScrollGuide from './hanxizai/ScrollGuide.jsx';
+import BridgePoetry from './jiangshan/BridgePoetry.jsx';
 import RegionMusicControl from './jiangshan/RegionMusicControl.jsx';
 import './WorldScene.css';
 
@@ -11,6 +12,7 @@ const JIANGSHAN_KEYS = [
   ['空格', '跳跃'],
   ['鼠标', '环顾'],
   ['E', '登船 / 上岸'],
+  ['F', '与人物论诗'],
   ['Esc', '暂停'],
 ];
 
@@ -46,6 +48,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   const [load, setLoad] = useState({ p: 0, label: '展绢' });
   const [zone, setZone] = useState(null);
   const [prompt, setPrompt] = useState(null);
+  const [poetryActive,setPoetryActive]=useState(false);
 
   useEffect(() => {
     clearTimeout(disposeTimer.current);
@@ -103,7 +106,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
 
   return (
     <div className={`world world--${status}`}>
-      <canvas ref={canvasRef} className="world__canvas" onClick={guided || status === 'playing' ? undefined : enter} />
+      <canvas ref={canvasRef} className="world__canvas" onClick={guided || status === 'playing' || poetryActive ? undefined : enter} />
       <div ref={overlayRef} className="world__bubbles" aria-live="polite" />
 
       {!guided && status === 'playing' && <span className="world__reticle" aria-hidden="true" />}
@@ -140,7 +143,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
         </div>
       )}
 
-      {!guided && (status === 'ready' || status === 'paused') && (
+      {!guided && !poetryActive && (status === 'ready' || status === 'paused') && (
         <div className="world__overlay">
           <div className="world__card">
             <p className="world__card-eyebrow">{status === 'ready' ? `画境 · ${def.order ?? '壹'}` : '暂停'}</p>
@@ -162,6 +165,8 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
           </div>
         </div>
       )}
+
+      {paintingId === 'jiangshan-qiuse' && worldRef.current && <BridgePoetry world={worldRef.current} playing={status === 'playing'} onActive={setPoetryActive} />}
 
       {status === 'error' && (
         <div className="world__overlay">
