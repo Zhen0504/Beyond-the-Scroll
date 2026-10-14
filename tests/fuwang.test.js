@@ -256,6 +256,20 @@ test('本项目创作声明齐备，且未使用「官方」类表述', () => {
   assert.ok(blob.includes('艺术转译'));
   assert.ok(blob.includes('非敦煌研究院的官方解读或认可'));
 });
+test('全画完成提示与终章弹层都提供归卷出口', () => {
+  const guide = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'FuwangGuide.jsx'), 'utf8');
+  assert.match(guide, /fuwang__finished[\s\S]*?setEnding\(true\)[\s\S]*?归卷/);
+  assert.match(guide, /fuwang__ending-actions[\s\S]*?onClick=\{onExit\}>归卷 · 返回画廊/);
+});
+
+test('颜料盘明确标出已上色与未上色状态', () => {
+  const guide = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'FuwangGuide.jsx'), 'utf8');
+  const css = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'Fuwang.css'), 'utf8');
+  assert.match(guide, /data-clear=\{on \|\| undefined\}/);
+  assert.match(guide, /aria-pressed=\{on\}/);
+  assert.match(css, /\.fuwang__swatch\[data-clear\] b::after[\s\S]*?opacity:\s*1/);
+  assert.match(css, /\.fuwang__swatch\[data-clear\] em[\s\S]*?display:\s*inline-flex/);
+});
 /* ================= 按色开关 ================= */
 
 function makeUniforms() {

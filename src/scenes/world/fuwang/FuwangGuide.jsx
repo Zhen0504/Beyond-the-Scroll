@@ -113,6 +113,8 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
     (id) => {
       setPigment(id);
       restorer?.togglePigment(id);
+      // Restorer 是命令式对象；立即刷新一次，让“已上色”标记与壁画同步出现。
+      setTick((t) => t + 1);
     },
     [restorer],
   );
@@ -271,7 +273,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
                   <button
                     key={p.id}
                     className="fuwang__swatch"
-                    data-active={p.id === pigment || undefined}
+                    data-active={(on && p.id === pigment) || undefined}
                     data-clear={on || undefined}
                     style={{ '--swatch': p.hex }}
                     onClick={() => togglePigment(p.id)}
