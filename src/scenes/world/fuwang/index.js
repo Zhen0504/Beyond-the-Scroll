@@ -14,6 +14,7 @@ import { createArchitecture } from './architecture.js';
 import { GuidedTour } from '../hanxizai/GuidedTour.js';
 import { createMuralMaterial } from './mural.js';
 import { Restorer } from './restore.js';
+import { FuwangMusic } from './FuwangMusic.js';
 import { BOUNDS, CAMERA_FOV, FOLDS, MURAL, PIGMENTS } from './layout.js';
 import { CHAPTERS } from './story.js';
 
@@ -96,6 +97,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
       restorer.setFold(CHAPTER_INDEX(chapter.id));
     },
   });
+  const music = new FuwangMusic(controller);
 
   // 键盘换折必须同时驱动导览机位与敷彩状态；只改 Restorer 会造成
   // 顶部折题、相机取景和底部色层盘三者错位。
@@ -158,6 +160,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     mode: 'guided',
     tour: controller,
     controller,
+    music,
     restorer,
     paintCanvas: null,
     mural,
@@ -169,11 +172,13 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     start() {
       if (running || disposed) return;
       running = true;
+      music.setActive(true);
       last = performance.now();
       raf = requestAnimationFrame(frame);
     },
     stop() {
       running = false;
+      music.setActive(false);
       cancelAnimationFrame(raf);
     },
     /** 供开发与自动化排查：探针读取当前敷彩状态 */
@@ -202,6 +207,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       restorer.detach(canvas);
+      music.dispose();
       controller.dispose();
       const materials = new Set();
       const textures = new Set([muralTex]);

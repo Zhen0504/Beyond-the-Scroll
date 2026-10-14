@@ -11,18 +11,21 @@ function soften(param, value, now, seconds = 0.45) {
 }
 
 export class NightMusic {
-  constructor(tour) {
+  constructor(tour, options = {}) {
     this.tour = tour;
+    this.storageKey = options.storageKey ?? STORAGE;
+    this.scoreFor = options.scoreFor ?? chapterScore;
+    this.masterScale = options.masterScale ?? 0.45;
     this.listeners = new Set();
     this.retired = new Set();
     this.state = {
       enabled: true,
-      volume: DEFAULT_VOLUME,
+      volume: options.defaultVolume ?? DEFAULT_VOLUME,
       status: "waiting",
       chapter: 0,
     };
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE));
+      const saved = JSON.parse(localStorage.getItem(this.storageKey));
       if (typeof saved?.enabled === "boolean")
         this.state.enabled = saved.enabled;
       if (Number.isFinite(saved?.volume))
@@ -54,7 +57,7 @@ export class NightMusic {
   save() {
     try {
       localStorage.setItem(
-        STORAGE,
+        this.storageKey,
         JSON.stringify({
           enabled: this.state.enabled,
           volume: this.state.volume,
@@ -182,7 +185,7 @@ export class NightMusic {
         : 1;
     soften(
       this.master.gain,
-      this.state.volume * 0.45 * duck,
+      this.state.volume * this.masterScale * duck,
       this.context.currentTime,
     );
   }
@@ -195,7 +198,7 @@ export class NightMusic {
       this.retired.add(previous);
       previous.expiry = c.currentTime + 3.5;
     }
-    const score = chapterScore(chapter),
+    const score = this.scoreFor(chapter),
       gain = c.createGain();
     gain.gain.value = 0;
     gain.connect(this.instruments.input);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { MURAL, PIGMENTS } from './layout.js';
+import FuwangMusicControl from './FuwangMusicControl.jsx';
 
 /**
  * 卷三导览。
@@ -89,6 +90,11 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   }, [paintEvent, autoLecture]);
 
   useEffect(() => () => clearTimeout(feedbackTimer.current), []);
+
+  useEffect(() => {
+    world?.music?.setReading(sources || lecture);
+    return () => world?.music?.setReading(false);
+  }, [world, sources, lecture]);
 
   /**
    * 点颜色 = 开关：未敷则整体敷上，已敷则整体还原。
@@ -180,6 +186,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
           ))}
         </nav>
         <div className="night-tour__utilities">
+          {world?.music && <FuwangMusicControl music={world.music} />}
           <button className="night-tour__original" onClick={() => tour?.showPainting()}>
             原壁 <kbd>O</kbd>
           </button>
@@ -220,7 +227,14 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
               </button>
             </p>
             <div className="night-plate__actions">
-              <button className="night-primary" onClick={() => tour?.enter()} autoFocus>
+              <button
+                className="night-primary"
+                onClick={() => {
+                  world?.music?.activate();
+                  tour?.enter();
+                }}
+                autoFocus
+              >
                 {chapter.enter}
               </button>
               <button onClick={onExit}>归卷</button>

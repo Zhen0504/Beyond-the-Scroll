@@ -18,6 +18,9 @@ import {
 } from '../src/scenes/world/fuwang/restore.js';
 import { CHAPTERS } from '../src/scenes/world/fuwang/story.js';
 import { FOLD_QUOTES, PROJECT_NOTICE } from '../src/scenes/world/fuwang/quotes.js';
+import {
+  FUWANG_MUSIC_SCORE, fuwangChapterScore,
+} from '../src/scenes/world/fuwang/musicScore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -270,6 +273,42 @@ test('颜料盘明确标出已上色与未上色状态', () => {
   assert.match(guide, /aria-pressed=\{on\}/);
   assert.match(css, /\.fuwang__swatch\[data-clear\] b::after[\s\S]*?opacity:\s*1/);
   assert.match(css, /\.fuwang__swatch\[data-clear\] em[\s\S]*?display:\s*inline-flex/);
+});
+
+test('五折各有一段稀疏的原创五声音景，音域与力度适合作为背景', () => {
+  assert.equal(FUWANG_MUSIC_SCORE.length, FOLDS.length);
+  assert.equal(new Set(FUWANG_MUSIC_SCORE.map((s) => s.title)).size, FOLDS.length);
+  const pentatonic = new Set([2, 4, 6, 9, 11]);
+  FUWANG_MUSIC_SCORE.forEach((written, chapter) => {
+    const score = fuwangChapterScore(chapter);
+    assert.ok(written.title && written.color);
+    assert.ok(score.duration >= 60 && score.duration <= 85);
+    assert.ok(score.events.length >= 12 && score.events.length <= 28);
+    score.events.forEach((note, i) => {
+      assert.ok(note.time >= 0 && note.time < score.duration);
+      assert.ok(note.duration > 0 && note.duration < 7);
+      assert.ok(note.strength > 0 && note.strength <= 0.55);
+      assert.ok(note.pitch >= 45 && note.pitch <= 74 && pentatonic.has(note.pitch % 12));
+      assert.ok(['flute', 'zheng'].includes(note.instrument));
+      if (i) assert.ok(note.time >= score.events[i - 1].time);
+    });
+    const breaths = score.events.filter((note) => note.instrument === 'flute');
+    breaths.forEach((note, i) => {
+      const next = breaths[i + 1]?.time ?? score.duration + breaths[0].time;
+      assert.ok(note.time + note.duration + 0.22 < next, `${written.title} 的笛音之间需要留出换气`);
+    });
+  });
+});
+
+test('卷三配乐随场景启停并在入画手势中解锁', () => {
+  const world = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'index.js'), 'utf8');
+  const guide = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'FuwangGuide.jsx'), 'utf8');
+  assert.match(world, /new FuwangMusic\(controller\)/);
+  assert.match(world, /start\(\)[\s\S]*?music\.setActive\(true\)/);
+  assert.match(world, /stop\(\)[\s\S]*?music\.setActive\(false\)/);
+  assert.match(world, /dispose\(\)[\s\S]*?music\.dispose\(\)/);
+  assert.match(guide, /FuwangMusicControl/);
+  assert.match(guide, /music\?\.activate\(\)[\s\S]*?tour\?\.enter\(\)/);
 });
 /* ================= 按色开关 ================= */
 
