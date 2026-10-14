@@ -59,7 +59,9 @@ export function uToX(u) {
 const FOLD_SPAN_PER_DIST = 0.1577;   // 实测：每单位距离可见的 u 宽度
 const MARGIN = 1.10;                 // 只留少量呼吸边，避免画外洞窟被误读为内容缺失
 const EDGE_GUARD = 0.030;            // 补偿透视与实际视口差异，让首末折贴近屏幕边缘
-const EYE_Y = 1.70;                  // 视高：与人物主体齐平
+// 镜头光轴穿过壁画中心。相机与注视点保持同高，矩形画幅才不会因
+// 俯视产生上窄下宽的透视斜边，误看成壁画缺失。
+const EYE_Y = MURAL.cy;
 // 第三折的取景能完整容纳壁画高度，其他较窄折不能再因横向范围较小而继续拉近。
 // 该下限在 62° 垂直视场角下为壁画上下各留约 10% 呼吸边。
 export const MIN_MURAL_VIEW_DIST = 2.24;
@@ -80,8 +82,8 @@ export function stopsForFold(u0, u1) {
   );
   const targetX = uToX(targetU);
   return {
-    camera: [targetX, EYE_Y + 0.14, MURAL.z + dist],
-    target: [targetX, EYE_Y - 0.06, MURAL.z],
+    camera: [targetX, EYE_Y, MURAL.z + dist],
+    target: [targetX, EYE_Y, MURAL.z],
     dist,
   };
 }
