@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  FOLDS, MURAL, PIGMENTS, PIGMENT_KEYS, uToX, stopsForFold,
+  CAMERA_FOV, FOLDS, MIN_MURAL_VIEW_DIST, MURAL, PIGMENTS, PIGMENT_KEYS,
+  uToX, stopsForFold,
 } from '../src/scenes/world/fuwang/layout.js';
 import {
   SHAPES, SHAPES_BY_FOLD, MASK_SLOTS, MASK_COLS, MASK_ROWS,
@@ -32,10 +33,10 @@ test('五折的 u 区间首尾相接，覆盖整幅横卷且不重叠', () => {
   for (const f of FOLDS) assert.ok(f.u1 > f.u0, `${f.name} 区间应为正`);
 });
 
-test('每折机位落在本折内，首末折向画内收以免露出洞窟侧墙', () => {
+test('中间折正对本折中心，首末折向画内收以免露出洞窟侧墙', () => {
   for (const [i, f] of FOLDS.entries()) {
     const targetU = f.target[0] / MURAL.width + 0.5;
-    assert.ok(targetU >= f.u0 && targetU <= f.u1, `${f.name} 注视点应落在本折范围内`);
+    assert.ok(targetU >= 0 && targetU <= 1, `${f.name} 注视点不得越出整幅壁画`);
     assert.ok(Math.abs(f.camera[0] - f.target[0]) < 1e-6, `${f.name} 机位应正对注视点`);
     if (i > 0 && i < FOLDS.length - 1) {
       const wantX = uToX((f.u0 + f.u1) / 2);
@@ -45,10 +46,11 @@ test('每折机位落在本折内，首末折向画内收以免露出洞窟侧�
   }
 });
 
-test('机位距离与折宽成正比，可视横跨足以容纳本折', () => {
+test('机位兼顾折宽与完整画高，可视横跨足以容纳本折', () => {
   const PER_DIST = 0.1577;   // 实测标定
   for (const f of FOLDS) {
     assert.ok(f.dist * PER_DIST >= (f.u1 - f.u0) * 1.05, `${f.name} 可视横跨应大于折宽`);
+    assert.ok(f.dist >= MIN_MURAL_VIEW_DIST, `${f.name} 不应因折窄而放大裁掉上下缘`);
     assert.ok(f.dist > 0.5 && f.dist < 4);
   }
 });
@@ -205,6 +207,20 @@ test('每折的停点都对准本折区段', () => {
       const centre = s.camera[0] / MURAL.width + 0.5;
       assert.ok(centre > c.u0 - 0.05 && centre < c.u1 + 0.05, `${c.name}/${s.title} 视线偏离本折`);
       assert.ok(s.camera[2] * PER_DIST > (c.u1 - c.u0) * 0.6, `${c.name}/${s.title} 可视范围过窄`);
+    }
+  }
+});
+
+test('五折所有停点都能在竖直方向容纳完整壁画', () => {
+  const halfFov = (CAMERA_FOV * Math.PI) / 360;
+  for (const c of CHAPTERS) {
+    for (const s of c.stops) {
+      const dist = s.camera[2] - MURAL.z;
+      const visibleHeight = 2 * dist * Math.tan(halfFov);
+      assert.ok(
+        visibleHeight >= MURAL.height * 1.05,
+        `${c.name}/${s.title} 竖直视野 ${visibleHeight.toFixed(3)} 不足以容纳画高`,
+      );
     }
   }
 });

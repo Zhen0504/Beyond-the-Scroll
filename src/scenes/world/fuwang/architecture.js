@@ -439,31 +439,8 @@ export function createArchitecture({ walkMap }) {
   floorGeo.translate(0, y0, depth / 2 - MURAL.z);
   pieces.push(paint(floorGeo, C.floor, MAT.stone));
 
-  // 两侧壁（含三段式壁画）
-  for (const s of [-1, 1]) {
-    const wall = new PlaneGeometry(depth, y1 - y0);
-    wall.rotateY((s * Math.PI) / 2);
-    wall.translate(s * hw, (y0 + y1) / 2, depth / 2 - MURAL.z);
-    pieces.push(paint(wall, C.wallDeep, MAT.plaster));
-
-    const face = s * (hw - 0.03);
-    const fx = (a, b) => (s > 0 ? [a, b] : [-b, -a]);
-    const [za, zb] = fx(-2.2, 3.4);
-
-    // 上：天宫伎乐
-    pieces.push(...heavenlyMusicians({ x0: za, x1: zb, y: 3.05, cols: 9, z: face }));
-    // 中：千佛
-    pieces.push(
-      ...thousandBuddha({ x0: za, x1: zb, y0: 1.55, y1: 2.85, cols: 12, rows: 4, z: face }),
-    );
-    // 中段的佛经故事（以较大的剪影示意）
-    pieces.push(...heavenlyMusicians({ x0: za + 1.2, x1: za + 2.9, y: 1.35, cols: 3, z: face }));
-    // 下：药叉
-    pieces.push(...yakshas({ x0: za, x1: zb, y: y0 + 0.10, cols: 8, z: face }));
-    // 边饰
-    pieces.push(...borderBand({ x0: za, x1: zb, y: 2.72, height: 0.22, z: face, color: C.shiqing }));
-    pieces.push(...borderBand({ x0: za, x1: zb, y: 1.42, height: 0.20, z: face, color: C.shilv }));
-  }
+  // 正面导览不放置伸向观众的侧壁。它们在首末折会以斜三角形挡住壁画边缘，
+  // 看起来像图片缺失；洞窟语境改由后壁、上下边框、平棋顶与中心塔柱承担。
 
   // 后壁（壁画本身的背衬）
   const back = new PlaneGeometry(hw * 2, y1 - y0);

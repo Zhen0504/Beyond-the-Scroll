@@ -43,19 +43,71 @@
   letter-spacing: 0.14em;
 }
 
+/* 卷三门页固定在一屏内：窄折展示更多相邻画面，不再把局部图纵向撑高。 */
+.fuwang .night-plate {
+  overflow: hidden;
+}
+
+.fuwang .night-plate__inner {
+  box-sizing: border-box;
+  width: min(920px, 86vw);
+  height: 100dvh;
+  padding: 78px 0 16px;
+}
+
+.fuwang .night-plate .night-eyebrow {
+  margin: 4px 0 0;
+}
+
+.fuwang .night-plate h1 {
+  margin: 4px 0 2px;
+  font-size: clamp(34px, 4.1vh, 46px);
+}
+
+.fuwang .night-plate__verse {
+  margin: 0 0 12px;
+}
+
+.fuwang .night-plate__painting {
+  margin: 0 auto 8px;
+  padding: 8px 10px 6px;
+}
+
+.fuwang .night-plate figcaption {
+  margin-top: 5px;
+}
+
+.fuwang .night-plate__intro {
+  margin: 7px auto 5px;
+  line-height: 1.65;
+}
+
+.fuwang .night-plate__hint {
+  margin: 3px 0 7px;
+}
+
+.fuwang .night-plate__actions {
+  gap: 9px;
+}
+
+.fuwang .night-plate__actions button {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 /* ---------- 底部颜料盘 ---------- */
 
 .fuwang__palette {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 8px;
   transform: translateX(-50%);
   display: grid;
   grid-template-columns: auto auto auto auto;
   align-items: center;
-  gap: 0 18px;
+  gap: 0 10px;
   max-width: calc(100vw - 32px);
-  padding: 10px 18px;
+  padding: 6px 10px;
   border: 1px solid rgb(201 168 106 / 34%);
   border-radius: 6px;
   background:
@@ -69,8 +121,8 @@
 
 .fuwang__palette-title {
   display: grid;
-  gap: 2px;
-  padding-right: 14px;
+  gap: 1px;
+  padding-right: 8px;
   border-right: 1px solid rgb(201 168 106 / 24%);
   white-space: nowrap;
 }
@@ -82,25 +134,21 @@
 }
 
 .fuwang__palette-title small {
-  color: var(--text-dim);
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  display: none;
 }
 
 .fuwang__swatches {
   display: grid;
   grid-template-columns: repeat(6, auto);
-  gap: 4px;
+  gap: 1px;
 }
 
 .fuwang__swatch {
-  display: grid;
+  display: flex;
   flex: none;
-  grid-template-columns: 18px auto;
-  grid-template-rows: auto auto;
   align-items: center;
-  gap: 0 6px;
-  padding: 5px 8px 5px 6px;
+  gap: 5px;
+  padding: 4px 6px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: none;
@@ -114,9 +162,9 @@
 }
 
 .fuwang__swatch b {
-  grid-row: 1 / span 2;
-  width: 18px;
-  height: 18px;
+  flex: none;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--swatch);
   box-shadow:
@@ -127,13 +175,11 @@
 
 .fuwang__swatch span {
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .fuwang__swatch em {
-  font-size: 10px;
-  font-style: normal;
-  opacity: 0.6;
+  display: none;
 }
 
 .fuwang__swatch:hover,
@@ -172,9 +218,9 @@
 .fuwang__meter {
   position: relative;
   display: grid;
-  gap: 5px;
-  min-width: 108px;
-  font-size: 11px;
+  gap: 3px;
+  min-width: 88px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--text-dim);
 }
@@ -185,15 +231,12 @@
 }
 
 .fuwang__meter small {
-  color: var(--text-dim);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
+  display: none;
 }
 
 .fuwang__meter i {
   display: block;
-  height: 3px;
+  height: 2px;
   transform-origin: 0 50%;
   background: linear-gradient(90deg, var(--cinnabar), var(--gold));
   transition: transform 0.3s ease-out;
@@ -240,7 +283,7 @@
 .fuwang__finished {
   position: absolute;
   left: 50%;
-  bottom: 116px;
+  bottom: 82px;
   transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
@@ -336,20 +379,20 @@
 .fuwang__targetsline {
   position: absolute;
   left: 50%;
-  bottom: 116px;
+  bottom: 64px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 9px;
   max-width: min(46em, calc(100vw - 60px));
   margin: 0;
-  padding: 7px 16px;
+  padding: 5px 12px;
   border: 1px solid rgb(201 168 106 / 32%);
   border-radius: 3px;
   background: rgb(8 10 11 / 82%);
   color: var(--text);
   font-family: var(--font-serif);
-  font-size: 12.5px;
+  font-size: 11.5px;
   letter-spacing: 0.05em;
   white-space: nowrap;
   overflow: hidden;
@@ -359,7 +402,7 @@
 .fuwang__fold-complete {
   position: absolute;
   left: 50%;
-  bottom: 116px;
+  bottom: 64px;
   transform: translateX(-50%);
   margin: 0;
   border: 1px solid rgb(201 168 106 / 36%);
@@ -376,7 +419,7 @@
 }
 
 .fuwang__feedback {
-  padding: 8px 18px;
+  padding: 6px 14px;
 }
 
 .fuwang__feedback--compare {
@@ -529,17 +572,17 @@
 
 .fuwang__tools {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .fuwang__tools button {
-  padding: 7px 12px;
+  padding: 5px 8px;
   border: 1px solid rgb(201 168 106 / 30%);
   border-radius: 3px;
   background: none;
   color: var(--text-dim);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   cursor: pointer;
   transition: color 0.25s, border-color 0.25s;
