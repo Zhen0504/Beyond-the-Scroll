@@ -262,6 +262,15 @@ test('全画完成弹层与常驻提示都提供归卷出口', () => {
   assert.match(guide, /fuwang__return-choice[\s\S]*?onClick=\{onExit\}>归卷/);
   assert.match(guide, /fuwang__finished-actions[\s\S]*?onClick=\{onExit\}>归卷/);
 });
+
+test('颜料盘明确标出已上色与未上色状态', () => {
+  const guide = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'FuwangGuide.jsx'), 'utf8');
+  const css = readFileSync(join(ROOT, 'src', 'scenes', 'world', 'fuwang', 'Fuwang.css'), 'utf8');
+  assert.match(guide, /data-clear=\{on \|\| undefined\}/);
+  assert.match(guide, /aria-pressed=\{on\}/);
+  assert.match(css, /\.fuwang__swatch\[data-clear\] b::after[\s\S]*?opacity:\s*1/);
+  assert.match(css, /\.fuwang__swatch\[data-clear\] em[\s\S]*?display:\s*inline-flex/);
+});
 /* ================= 按色开关 ================= */
 
 function makeUniforms() {
