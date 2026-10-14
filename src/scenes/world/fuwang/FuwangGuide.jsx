@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
-import { PIGMENTS } from './layout.js';
+import { MURAL, PIGMENTS } from './layout.js';
 
 /**
  * 卷三导览。
@@ -11,6 +11,15 @@ import { PIGMENTS } from './layout.js';
  */
 const NUMERALS = ['壹', '贰', '叁', '肆', '伍'];
 const AUTO_LECTURE_KEY = 'fuwang:auto-lecture';
+const PLATE_VIEW_SPAN = 0.44;
+
+/** 门页多带一些相邻画面，既保留本折主体，也避免窄折图片被纵向撑得过高。 */
+function plateWindow(chapter) {
+  const span = Math.max(PLATE_VIEW_SPAN, chapter.u1 - chapter.u0);
+  const center = (chapter.u0 + chapter.u1) / 2;
+  const u0 = Math.max(0, Math.min(1 - span, center - span / 2));
+  return { u0, u1: u0 + span, span };
+}
 
 export default function FuwangGuide({ world, onExit, paintEvent }) {
   const tour = world?.tour;
@@ -33,6 +42,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   const feedbackTimer = useRef(0);
 
   const chapter = CHAPTERS[state.chapter] ?? CHAPTERS[0];
+  const plateCrop = plateWindow(chapter);
   const plate = ['plate', 'entering'].includes(state.phase);
 
   // 敷彩状态是命令式对象（restorer.filled），用定时器把变化推给 React
@@ -188,14 +198,14 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             <figure className="night-plate__painting">
               <div
                 className="night-plate__crop"
-                style={{ aspectRatio: ((chapter.u1 - chapter.u0) * 6496) / 1114 }}
+                style={{ aspectRatio: (plateCrop.span * MURAL.texWidth) / MURAL.texHeight }}
               >
                 <img
                   src={`${import.meta.env.BASE_URL}paintings/fuwang-bensheng/panorama.jpg`}
                   alt={`莫高窟第257窟《鹿王本生》${chapter.name}段`}
                   style={{
-                    width: `${100 / (chapter.u1 - chapter.u0)}%`,
-                    left: `${(-100 * chapter.u0) / (chapter.u1 - chapter.u0)}%`,
+                    width: `${100 / plateCrop.span}%`,
+                    left: `${(-100 * plateCrop.u0) / plateCrop.span}%`,
                   }}
                 />
               </div>

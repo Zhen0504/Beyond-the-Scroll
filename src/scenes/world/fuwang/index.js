@@ -14,7 +14,7 @@ import { createArchitecture } from './architecture.js';
 import { GuidedTour } from '../hanxizai/GuidedTour.js';
 import { createMuralMaterial } from './mural.js';
 import { Restorer } from './restore.js';
-import { BOUNDS, FOLDS, MURAL, PIGMENTS } from './layout.js';
+import { BOUNDS, CAMERA_FOV, FOLDS, MURAL, PIGMENTS } from './layout.js';
 import { CHAPTERS } from './story.js';
 
 /**
@@ -73,7 +73,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
 
   // 视场按画幅高度定：画面高约 2.43，机位约 2.4–2.8，
   // 取 62° 视场可让单折区段充满画面，笔触清晰可辨。
-  const camera = new PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 90);
+  const camera = new PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, 0.1, 90);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // 先建敷彩系统：GuidedTour 在构造时即会回调 onChapter，此处必须已就绪

@@ -1,4 +1,4 @@
-import { FOLDS } from './layout.js';
+import { FOLDS, MIN_MURAL_VIEW_DIST, MURAL } from './layout.js';
 import { FOLD_QUOTES } from './quotes.js';
 
 /**
@@ -13,15 +13,16 @@ import { FOLD_QUOTES } from './quotes.js';
 
 /** 以折机位为基准平移一小段，视线仍落在壁画平面上 */
 function near(base, { dx = 0, dz = 0, dy = 0 } = {}) {
+  const z = Math.max(MURAL.z + MIN_MURAL_VIEW_DIST, base.camera[2] + dz);
   return {
-    camera: [base.camera[0] + dx, base.camera[1] + dy, base.camera[2] + dz],
+    camera: [base.camera[0] + dx, base.camera[1] + dy, z],
     target: [base.target[0] + dx * 0.7, base.target[1], base.target[2]],
   };
 }
 
 const stop = (title, action, lines, note) => ({ title, action, lines, note });
 
-/** 每折三个停点：全览 → 就近细看 → 移向下一段 */
+/** 每折三个停点：全览 → 平视细看 → 移向下一段；全程不裁掉壁画上下缘。 */
 function posesFor(f) {
   const base = { camera: f.camera, target: f.target };
   const step = (f.u1 - f.u0) * f.dist * 0.5;
