@@ -7,6 +7,17 @@
   position: relative;
   pointer-events: auto;
 }
+.night-music button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.night-music button:focus-visible {
+  outline: 2px solid #ad7353;
+  outline-offset: 4px;
+}
 .night-music__trigger {
   display: flex;
   align-items: center;
@@ -26,6 +37,11 @@
   backdrop-filter: blur(12px);
   font-size: 12px;
   text-align: left;
+  color: #322d22;
+  z-index: 30;
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 .night-music__heading {
   display: flex;
@@ -37,12 +53,12 @@
 .night-music__heading > span {
   font-size: 15px;
 }
-.night-tour .night-music__heading button {
+.night-music .night-music__heading button {
   border: 1px solid #8f7559;
   padding: 5px 9px;
   font-size: 11px;
 }
-.night-tour .night-music__heading [aria-checked="true"] {
+.night-music .night-music__heading [aria-checked="true"] {
   background: #80513a;
   color: #fff1da;
 }
@@ -83,7 +99,7 @@
   opacity: 0.85;
   margin-top: 6px;
 }
-.night-tour .night-music__start {
+.night-music .night-music__start {
   color: #804531;
   padding: 3px 0 12px;
 }

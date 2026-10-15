@@ -16,6 +16,7 @@ import { createMuralMaterial } from './mural.js';
 import { Restorer } from './restore.js';
 import { BOUNDS, FOLDS, MURAL, PIGMENTS } from './layout.js';
 import { CHAPTERS } from './story.js';
+import { FuwangMusic } from './FuwangMusic.js';
 
 /**
  * 卷三《鹿王本生》画境。
@@ -100,6 +101,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
   // 键盘换折必须同时驱动导览机位与敷彩状态；只改 Restorer 会造成
   // 顶部折题、相机取景和底部色层盘三者错位。
   restorer.onNavigate = (index) => controller.openChapter(CHAPTERS[index]?.id ?? CHAPTERS[0].id);
+  const music = new FuwangMusic(controller);
 
   restorer.attach(canvas);
   restorer.setFold(0);
@@ -159,6 +161,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     tour: controller,
     controller,
     restorer,
+    music,
     paintCanvas: null,
     mural,
     architecture: arch,
@@ -169,11 +172,13 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
     start() {
       if (running || disposed) return;
       running = true;
+      music.setActive(true);
       last = performance.now();
       raf = requestAnimationFrame(frame);
     },
     stop() {
       running = false;
+      music.setActive(false);
       cancelAnimationFrame(raf);
     },
     /** 供开发与自动化排查：探针读取当前敷彩状态 */
@@ -202,6 +207,7 @@ export async function buildFuwangWorld({ canvas, onProgress, onZone, onEvent }) 
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       restorer.detach(canvas);
+      music.dispose();
       controller.dispose();
       const materials = new Set();
       const textures = new Set([muralTex]);

@@ -126,6 +126,7 @@ export default function WorldScene({ paintingId = 'jiangshan-qiuse', onExit }) {
   };
 
   const exit = () => {
+    worldRef.current?.music?.setActive?.(false);
     worldRef.current?.controller.unlock();
     onExit?.();
   };

@@ -9,6 +9,8 @@ import { closedScrollWidth } from './layout.js';
 import { closeScroll, nudgeLocked, openScroll, playIntro, relayoutOpen } from './timelines.js';
 import './EntryScene.css';
 import { ScrollSound } from './ScrollSound.js';
+import { EntryMusic, ENTRY_SCORE } from './EntryMusic.js';
+import MusicControl from '../world/hanxizai/MusicControl.jsx';
 
 /**
  * 卷轴入口场景。
@@ -18,6 +20,7 @@ export default function EntryScene({ onEnterWorld }) {
   const [phase, setPhase] = useState('intro');
   const [active, setActive] = useState(null);
   const [cw, setCw] = useState(closedScrollWidth);
+  const [music, setMusic] = useState(null);
 
   const sceneRef = useRef(null);
   const stageRef = useRef(null);
@@ -30,6 +33,32 @@ export default function EntryScene({ onEnterWorld }) {
   const soundRef = useRef(null);
 
   const busy = phase !== 'idle';
+
+  useEffect(() => {
+    const ambience = new EntryMusic();
+    setMusic(ambience);
+    ambience.setActive(true);
+    const activate = (event) => {
+      if (event?.type === 'keydown' && (event.repeat || event.ctrlKey || event.metaKey || event.altKey)) {
+        return;
+      }
+      if (!ambience.unlocked || ambience.context?.state !== 'running') ambience.activate();
+    };
+    // The first visit waits for an interaction. Returning from a scroll can resume.
+    if (navigator.userActivation?.hasBeenActive) activate();
+    window.addEventListener('pointerdown', activate);
+    window.addEventListener('keydown', activate);
+    if (import.meta.env.DEV) window.__entryMusic = ambience;
+    return () => {
+      window.removeEventListener('pointerdown', activate);
+      window.removeEventListener('keydown', activate);
+      ambience.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    music?.setReading(phase === 'open');
+  }, [music, phase]);
 
   useEffect(() => {
     const sound = new ScrollSound();
@@ -132,6 +161,11 @@ export default function EntryScene({ onEnterWorld }) {
   return (
     <main className={`entry ${busy ? 'is-busy' : ''}`} ref={sceneRef} style={{ '--cw': `${cw}px` }}>
       <InkBackdrop />
+      {music && (
+        <div className="entry__music">
+          <MusicControl music={music} scores={ENTRY_SCORE} label="画廊配乐" accompaniment="轻声相伴 · 择卷听风" />
+        </div>
+      )}
 
       <header className="entry__title">
         <h1 className="entry__name">画中奇谭</h1>
@@ -189,7 +223,10 @@ export default function EntryScene({ onEnterWorld }) {
           ref={introRef}
           painting={paintings[active]}
           onClose={handleClose}
-          onEnter={() => onEnterWorld?.(paintings[active].id)}
+          onEnter={() => {
+            music?.setActive(false);
+            onEnterWorld?.(paintings[active].id);
+          }}
         />
       )}
     </main>

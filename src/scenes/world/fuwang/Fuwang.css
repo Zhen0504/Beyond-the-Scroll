@@ -240,12 +240,17 @@
 .fuwang__finished {
   position: absolute;
   left: 50%;
-  bottom: 184px;
+  bottom: 116px;
   transform: translateX(-50%);
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: min(660px, calc(100vw - 24px));
+  box-sizing: border-box;
   gap: 8px;
   justify-items: center;
-  padding: 16px 26px;
+  padding: 12px 18px;
   border: 1px solid rgb(201 168 106 / 45%);
   border-radius: 5px;
   background: linear-gradient(180deg, rgb(18 23 24 / 90%), rgb(8 10 11 / 94%));
@@ -257,6 +262,7 @@
 }
 
 .fuwang__finished b {
+  width: 100%;
   color: var(--gold-soft);
   font-size: 17px;
   font-weight: 400;
@@ -264,13 +270,65 @@
 }
 
 .fuwang__finished span {
+  width: 100%;
   color: var(--text-dim);
   font-size: 12px;
   letter-spacing: 0.08em;
 }
 
+.fuwang__finished button {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--gold-soft);
+  border: 1px solid rgb(201 168 106 / 45%);
+}
+
 .fuwang__finished .night-primary {
-  margin-top: 4px;
+  color: #fff1da;
+}
+
+.fuwang__lecture-actions,
+.fuwang__ending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 24px;
+}
+
+.fuwang__lecture-actions button,
+.fuwang__ending-actions button {
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.night-modal.fuwang__ending > div {
+  width: min(800px, 100%);
+  max-width: 800px;
+  box-sizing: border-box;
+}
+
+.fuwang__ending figure {
+  margin: 24px 0;
+}
+
+.fuwang__ending img {
+  display: block;
+  width: 100%;
+  border: 1px solid #ad9570;
+}
+
+.fuwang__ending figcaption {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: #756249;
+  letter-spacing: 2px;
+}
+
+.night-modal .fuwang__ending-note {
+  color: #756249;
+  font-size: 11px;
 }
 
 /* ---------- 该涂哪里 ---------- */
@@ -770,6 +828,7 @@
 
   .fuwang__targetsline,
   .fuwang__feedback,
+  .fuwang__finished,
   .fuwang__fold-complete {
     bottom: 180px;
     max-width: calc(100vw - 24px);
@@ -779,6 +838,19 @@
 }
 
 @media (max-width: 560px) {
+  .fuwang .night-tour__utilities {
+    gap: 6px;
+  }
+
+  .fuwang .night-tour__home,
+  .fuwang .night-tour__original {
+    padding: 7px 5px;
+  }
+
+  .fuwang__finished {
+    padding: 10px 12px;
+  }
+
   .fuwang__swatch {
     grid-template-columns: 16px 1fr;
     padding: 5px 4px;

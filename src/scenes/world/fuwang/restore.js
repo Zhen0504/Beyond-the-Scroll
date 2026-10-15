@@ -39,6 +39,7 @@ export class Restorer {
 
     this.palette = palette;
     this.index = 0;
+    this.enabled = true;
 
     /** 已敷上的形体 id */
     this.filled = new Set();
@@ -206,6 +207,10 @@ export class Restorer {
   }
 
   onKey(e) {
+    if (
+      !this.enabled || e.repeat || e.ctrlKey || e.metaKey || e.altKey ||
+      /INPUT|TEXTAREA|SELECT/.test(e.target?.tagName) || e.target?.isContentEditable
+    ) return;
     const n = Math.min(9, this.palette.length);
     if (e.key >= '1' && e.key <= String(n)) {
       this.togglePigment(this.palette[Number(e.key) - 1].id);

@@ -5,6 +5,20 @@
   background: var(--ink-900);
   color: var(--text);
 }
+.entry__music {
+  position: absolute;
+  top: 18px;
+  right: 28px;
+  z-index: 20;
+  font-family: var(--font-serif);
+  color: var(--gold-soft);
+}
+@media (max-width: 700px) {
+  .entry__music {
+    top: 12px;
+    right: 16px;
+  }
+}
 
 /* ---------- 题字 ---------- */
 .entry__title {

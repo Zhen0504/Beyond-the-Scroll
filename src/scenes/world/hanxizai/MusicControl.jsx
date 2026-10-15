@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { MUSIC_SCORE } from "./musicScore.js";
 import "./MusicControl.css";
 
-export default function MusicControl({ music }) {
+export default function MusicControl({
+  music,
+  scores = MUSIC_SCORE,
+  label = "夜宴配乐",
+  accompaniment = "轻声相伴 · 随折换曲",
+  credit = "原创筝笛意象配乐，非古曲复原。",
+}) {
   const state = useSyncExternalStore(music.subscribe, music.getSnapshot);
   const [open, setOpen] = useState(false);
   const root = useRef(null),
     trigger = useRef(null);
-  const score = MUSIC_SCORE[state.chapter];
+  const score = scores[state.chapter] ?? scores[0];
+  const panelId = useId(), volumeId = useId();
   const silent = !state.enabled || state.volume === 0;
   useEffect(() => {
     if (!open) return;
@@ -26,8 +33,9 @@ export default function MusicControl({ music }) {
       className="night-music"
       ref={root}
       onKeyDown={(event) => {
+        // Settings keystrokes must not reach a scene's navigation / painting shortcuts.
+        if (open) event.stopPropagation();
         if (event.key === "Escape" && open) {
-          event.stopPropagation();
           setOpen(false);
           trigger.current?.focus();
         }
@@ -38,7 +46,7 @@ export default function MusicControl({ music }) {
         className="night-music__trigger"
         aria-label="配乐设置"
         aria-expanded={open}
-        aria-controls="night-music-panel"
+        aria-controls={panelId}
         onClick={() => setOpen(!open)}
       >
         <svg
@@ -65,9 +73,9 @@ export default function MusicControl({ music }) {
       {open && (
         <div
           className="night-music__panel"
-          id="night-music-panel"
+          id={panelId}
           role="group"
-          aria-label="夜宴配乐"
+          aria-label={label}
         >
           <div className="night-music__heading">
             <span>{score.title}</span>
@@ -81,11 +89,11 @@ export default function MusicControl({ music }) {
             </button>
           </div>
           <p>{score.color}</p>
-          <label htmlFor="night-music-volume">
+          <label htmlFor={volumeId}>
             音量 <output>{Math.round(state.volume * 100)}%</output>
           </label>
           <input
-            id="night-music-volume"
+            id={volumeId}
             type="range"
             min="0"
             max="100"
@@ -110,10 +118,10 @@ export default function MusicControl({ music }) {
           <small>
             {state.status === "paused"
               ? "暂歇时，乐声也歇。"
-              : "轻声相伴 · 随折换曲"}
+              : accompaniment}
           </small>
           <small className="night-music__credit">
-            原创筝笛意象配乐，非古曲复原。
+            {credit}
           </small>
         </div>
       )}

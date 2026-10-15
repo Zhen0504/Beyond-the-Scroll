@@ -442,6 +442,27 @@ test('键盘：数字键开关颜色、Q/E 换折、R 还原', () => {
   assert.equal(r.index, 0, '第一折不应再后退');
 });
 
+test('弹窗或音量输入期间，快捷键不改变敷彩和折数', () => {
+  const { r } = makeRestorer();
+  paintFold(r, 1);
+  const before = r.snapshot();
+  const press = (key, extra = {}) => r.onKey({ key, preventDefault() {}, ...extra });
+  r.enabled = false;
+  for (const key of ['1', 'q', 'e', 'r']) press(key);
+  assert.deepEqual(r.snapshot(), before);
+  r.enabled = true;
+  for (const extra of [
+    { target: { tagName: 'INPUT' } },
+    { target: { isContentEditable: true } },
+    { repeat: true }, { ctrlKey: true }, { metaKey: true }, { altKey: true },
+  ]) {
+    for (const key of ['1', 'q', 'e', 'r']) press(key, extra);
+    assert.deepEqual(r.snapshot(), before);
+  }
+  press('r');
+  assert.equal(r.progress[1], 0);
+});
+
 test('引导已关闭：正常成像不再压暗或高亮画面', () => {
   const { r, uniforms } = makeRestorer();
   r.setFold(0);

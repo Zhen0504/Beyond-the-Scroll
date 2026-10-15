@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from './story.js';
 import { CAVE_QUOTES, COURSE_QUOTES, PROJECT_NOTICE, REFERENCES } from './quotes.js';
 import { PIGMENTS } from './layout.js';
+import MusicControl from '../hanxizai/MusicControl.jsx';
+import { FUWANG_SCORE } from './FuwangMusic.js';
 
 /**
  * 卷三导览。
@@ -19,6 +21,8 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 
   const [sources, setSources] = useState(false);
   const [lecture, setLecture] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const pausedRef = useRef(null);
   const [autoLecture, setAutoLecture] = useState(() => {
     try {
       return window.localStorage.getItem(AUTO_LECTURE_KEY) !== 'off';
@@ -34,6 +38,17 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 
   const chapter = CHAPTERS[state.chapter] ?? CHAPTERS[0];
   const plate = ['plate', 'entering'].includes(state.phase);
+  const modal = sources || lecture || ending || state.phase === 'paused';
+
+  useEffect(() => {
+    world.music.setReading(sources || lecture || ending);
+    if (restorer) restorer.enabled = !modal && state.phase === 'scene';
+    return () => {
+      world.music.setReading(false);
+      if (restorer) restorer.enabled = false;
+    };
+  }, [world, restorer, sources, lecture, ending, modal, state.phase]);
+  useDialogFocus(pausedRef, state.phase === 'paused' && !sources && !lecture && !ending);
 
   // 敷彩状态是命令式对象（restorer.filled），用定时器把变化推给 React
   useEffect(() => {
@@ -135,21 +150,26 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
   useEffect(() => {
     if (!tour) return undefined;
     const onKey = (e) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
+        e.preventDefault();
         if (sources) setSources(false);
         else if (lecture) setLecture(false);
+        else if (ending) setEnding(false);
         else tour.state.phase === 'paused' ? tour.resume() : tour.pause();
+        return;
       }
+      if (modal || /INPUT|TEXTAREA|SELECT/.test(e.target?.tagName) || e.target?.isContentEditable) return;
       if (e.key === 'o' || e.key === 'O') tour.showPainting();
       if ((e.key === 'l' || e.key === 'L') && foldDone) setLecture((v) => !v);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tour, sources, lecture, foldDone]);
+  }, [tour, sources, lecture, ending, modal, foldDone]);
 
   return (
     <div className="night-tour fuwang">
-      <header className="night-tour__header">
+      <header className="night-tour__header" inert={modal}>
         <button className="night-tour__home" onClick={onExit} aria-label="归卷，返回画廊">
           〈 归卷
         </button>
@@ -171,14 +191,20 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
           <button className="night-tour__original" onClick={() => tour?.showPainting()}>
             原壁 <kbd>O</kbd>
           </button>
-          <button className="night-tour__original" onClick={() => setSources(true)}>
-            释文依据
+          <button className="night-tour__original" aria-label="释文依据" onClick={() => setSources(true)}>
+            依据
           </button>
+          <MusicControl
+            music={world.music}
+            scores={FUWANG_SCORE}
+            label="鹿王本生配乐"
+            credit="原创筝笛意象配乐，非北魏古曲复原。"
+          />
         </div>
       </header>
 
       {plate && (
-        <div className={`night-plate ${state.phase === 'entering' ? 'night-plate--leaving' : ''}`}>
+        <div inert={modal || state.phase === 'entering'} className={`night-plate ${state.phase === 'entering' ? 'night-plate--leaving' : ''}`}>
           <div className="night-plate__inner">
             <p className="night-eyebrow">
               鹿王本生 · 第{NUMERALS[state.chapter]}折
@@ -208,7 +234,11 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
               </button>
             </p>
             <div className="night-plate__actions">
-              <button className="night-primary" onClick={() => tour?.enter()} autoFocus>
+              <button
+                className="night-primary"
+                onClick={() => { world.music.activate(); tour?.enter(); }}
+                autoFocus
+              >
                 {chapter.enter}
               </button>
               <button onClick={onExit}>归卷</button>
@@ -219,7 +249,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 
       {!plate && state.phase !== 'paused' && (
         <>
-          <div className="fuwang__palette" role="toolbar" aria-label="壁画综合色层">
+          <div className="fuwang__palette" role="toolbar" aria-label="壁画综合色层" inert={modal}>
             <div className="fuwang__palette-title" aria-hidden="true">
               <span>壁画设色</span>
               <small>六类色层显影</small>
@@ -281,7 +311,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             </div>
           </div>
 
-          {feedback ? (
+          {!allDone && (feedback ? (
             <p
               key={feedback.key}
               className={`fuwang__feedback fuwang__feedback--${feedback.kind}`}
@@ -289,8 +319,8 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
             >
               {feedback.text}
             </p>
-          ) : foldDone && !allDone ? (
-            <div className="fuwang__fold-complete" role="status">
+          ) : foldDone ? (
+            <div className="fuwang__fold-complete" role="status" inert={modal}>
               <span>第{NUMERALS[state.chapter]}折六类色层已显</span>
               <button type="button" onClick={() => setLecture(true)}>读释文</button>
               {nextChapter && (
@@ -308,23 +338,24 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
                   : `尚余 ${Math.max(0, colorTotal - onCount)} 色`}
               </span>
             </p>
-          )}
+          ))}
 
           {/* 五折全部完成：给一个明确、常驻的收束提示 */}
           {allDone && (
-            <div className="fuwang__finished" role="status">
+            <div className="fuwang__finished" role="status" inert={modal}>
               <b>五折色层已显</b>
               <span>整幅《鹿王本生》六类色层显影完成 —— 可读释文</span>
               <button type="button" className="night-primary" onClick={() => setLecture(true)}>
                 读全画释文
               </button>
+              <button type="button" onClick={() => setEnding(true)}>读终章 · 归卷 →</button>
             </div>
           )}
         </>
       )}
 
-      {state.phase === 'paused' && (
-        <div className="night-modal" role="dialog" aria-modal="true" aria-label="暂停">
+      {state.phase === 'paused' && !sources && !lecture && !ending && (
+        <div ref={pausedRef} className="night-modal" role="dialog" aria-modal="true" aria-label="暂停">
           <div>
             <p className="night-eyebrow">第三卷 · 鹿王本生</p>
             <h2>{chapter.name}</h2>
@@ -343,13 +374,22 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
         <SourcePanel onClose={() => setSources(false)} list={sourcesList} chapter={chapter} />
       )}
 
-      {lecture && !sources && (
+      {lecture && !sources && !ending && (
         <LecturePanel
           chapter={chapter}
           onClose={() => setLecture(false)}
           allDone={doneCount >= CHAPTERS.length}
           autoLecture={autoLecture}
           onAutoLectureChange={changeAutoLecture}
+          onFinish={() => { setLecture(false); setEnding(true); }}
+          onExit={onExit}
+        />
+      )}
+      {ending && !sources && (
+        <EndingPanel
+          onExit={onExit}
+          onClose={() => setEnding(false)}
+          onRead={() => { setEnding(false); setLecture(true); }}
         />
       )}
     </div>
@@ -359,9 +399,7 @@ export default function FuwangGuide({ world, onExit, paintEvent }) {
 /** 依据面板：引文与出处逐条列出，并声明本项目创作部分 */
 function SourcePanel({ onClose, list, chapter }) {
   const ref = useRef(null);
-  useEffect(() => {
-    ref.current?.querySelector('button')?.focus();
-  }, []);
+  useDialogFocus(ref);
   return (
     <div ref={ref} className="night-modal" role="dialog" aria-modal="true" aria-label="释文与依据">
       <div>
@@ -411,13 +449,9 @@ function SourcePanel({ onClose, list, chapter }) {
 }
 
 /** 释文面板：完成敷彩后解锁的整幅讲解 */
-function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureChange }) {
+function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureChange, onFinish, onExit }) {
   const ref = useRef(null);
-  useEffect(() => {
-    const panel = ref.current?.firstElementChild;
-    if (panel) panel.scrollTop = 0;
-    ref.current?.querySelector('button')?.focus({ preventScroll: true });
-  }, []);
+  useDialogFocus(ref);
   return (
     <div ref={ref} className="night-modal" role="dialog" aria-modal="true" aria-label="释文">
       <div>
@@ -496,12 +530,79 @@ function LecturePanel({ chapter, onClose, allDone, autoLecture, onAutoLectureCha
             <small>仍可点击“释文”或按 L 随时查看</small>
           </span>
         </label>
-        <button className="night-primary" onClick={onClose}>
-          回到壁画
-        </button>
+        <div className="fuwang__lecture-actions">
+          {allDone && <button className="night-primary" onClick={onFinish}>读终章 · 画外余音 →</button>}
+          {allDone && <button onClick={onExit}>归卷 · 返回画廊</button>}
+          <button className={allDone ? undefined : 'night-primary'} onClick={onClose}>回到壁画</button>
+        </div>
       </div>
     </div>
   );
+}
+
+function EndingPanel({ onExit, onClose, onRead }) {
+  const ref = useRef(null);
+  useDialogFocus(ref);
+  return (
+    <div
+      ref={ref}
+      className="night-modal fuwang__ending"
+      role="dialog"
+      aria-modal="true"
+      aria-label="鹿王本生终章"
+    >
+      <div>
+        <p className="night-eyebrow">卷三 · 五折色层已显</p>
+        <h2>鹿影归壁，善意长存</h2>
+        <figure>
+          <img
+            src={`${import.meta.env.BASE_URL}paintings/fuwang-bensheng/panorama.jpg`}
+            alt="《鹿王本生》原壁画全景"
+          />
+          <figcaption>莫高窟第257窟 · 原壁画全景</figcaption>
+        </figure>
+        <p>从水边的援手，到宫中的背弃，再到鹿王的陈情，我们沿着一幅壁画，走过了五折故事。</p>
+        <p>
+          色彩渐次显现，故事也留下一问：面对利益与承诺，我们愿意怎样选择？
+          把这一问带出洞窟，让古老的善意在今天继续被讲述。
+        </p>
+        <p className="fuwang__ending-note">画外余音 · 本项目创作。敷彩与配乐为当代艺术转译。</p>
+        <div className="fuwang__ending-actions">
+          <button className="night-primary" onClick={onExit}>归卷 · 返回画廊 →</button>
+          <button onClick={onClose}>再看壁画</button>
+          <button onClick={onRead}>读全画释文</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useDialogFocus(ref, active = true) {
+  useEffect(() => {
+    const root = ref.current;
+    if (!active || !root) return;
+    const previous = document.activeElement;
+    const controls = () => [
+      ...root.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled)'),
+    ];
+    root.querySelector('button')?.focus({ preventScroll: true });
+    const trap = (event) => {
+      if (event.key !== 'Tab') return;
+      const items = controls(), first = items[0], last = items.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    root.addEventListener('keydown', trap);
+    return () => {
+      root.removeEventListener('keydown', trap);
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [ref, active]);
 }
 
 /** 订阅 GuidedTour 的发布状态 */
