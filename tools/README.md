@@ -35,8 +35,7 @@
 
 ## 四、验证（DevTools 协议）
 
-这些脚本通过 CDP 驱动真实的无头 Edge，而不是模拟 DOM —— 因为
-**PowerShell 管道在本机沙箱内被限制**，无法直接读取另一个进程的 stdout。
+这些脚本通过 CDP 驱动无头 Edge，读取页面状态、捕获控制台错误并保存截图。
 
 | 脚本 | 用途 |
 |---|---|
@@ -64,13 +63,9 @@ python tools/cdp_walk.py
 脚本内的 URL 默认指向 `http://127.0.0.1:5173/#fuwang`（dev）。
 对生产预览运行时，把端口改为 `5199` 或 `4173`。
 
-## 六、踩过的坑（供日后参考）
+## 六、验证注意事项
 
-1. **本机无法直连 GitHub**：`raw.githubusercontent.com` 被解析为 `0.0.0.0`，
-   PowerShell 直连 `github.com`／`codeload` 亦被重置。可用通道是 `ghfast.top` 镜像。
-2. **`npm install` 报 EPERM**：沙箱不允许写默认缓存目录，把 `cache` 指到项目内即可。
-3. **`vite build` 报 `spawn EPERM`**：Vite 用 `exec` 探测路径，受限沙箱下必然失败。
-4. **无头截图会抓到动画首帧**：`--virtual-time-budget` 对 GSAP／WebGL 不可靠，
+1. **无头截图会抓到动画首帧**：`--virtual-time-budget` 对 GSAP／WebGL 不可靠，
    应改用 CDP：导航 → 真实等待 → `Page.captureScreenshot`。
-5. **`--dump-dom` 在异步回调前就返回**：读不到脚本写入的内容，须用 CDP 轮询。
-6. **`window.__world` 只在 DEV 暴露**：生产构建下探针不可用。
+2. **`--dump-dom` 在异步回调前就返回**：读不到脚本写入的内容，须用 CDP 轮询。
+3. **`window.__world` 只在 DEV 暴露**：生产构建下探针不可用。

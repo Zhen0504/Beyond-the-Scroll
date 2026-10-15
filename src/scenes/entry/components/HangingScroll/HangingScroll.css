@@ -483,11 +483,12 @@
 
 .hs__tag-strip {
   position: relative;
-  width: calc(var(--w) * 0.15);
+  width: calc(var(--w) * 0.18);
   height: calc(var(--w) * 0.74);
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: calc(var(--w) * 0.026);
   padding: calc(var(--w) * 0.045) 0 calc(var(--w) * 0.035);
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 18% 82%, rgba(0, 0, 0, 0.28)),
@@ -506,9 +507,12 @@
 
 .hs__tag-title {
   flex: 1;
+  min-height: 0;
   writing-mode: vertical-rl;
+  white-space: nowrap;
   font-family: var(--font-brush);
-  font-size: calc(var(--w) * 0.094);
+  /* 留出上下装裱、题签印章与间距，长题名仍保持单列完整显示。 */
+  font-size: min(calc(var(--w) * 0.094), calc(var(--w) * 0.57 / (var(--tag-title-length, 6) * 1.1)));
   line-height: 1;
   letter-spacing: 0.1em;
   color: #e7d09a;
@@ -523,6 +527,7 @@
 }
 
 .hs__tag-seal {
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   width: calc(var(--w) * 0.058);

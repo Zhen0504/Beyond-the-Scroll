@@ -1,8 +1,8 @@
 """Drive headless Edge over the DevTools Protocol to capture console output.
 
-PowerShell pipes are blocked in this sandbox, so we launch the browser with a
-remote debugging port, talk JSON over HTTP, and read events over WebSocket
-(via a raw socket implementation available in the stdlib-free path below).
+The browser exposes a remote debugging port. JSON over HTTP discovers the page,
+and a WebSocket connection receives its console events using Python's standard
+library.
 """
 import json
 import os

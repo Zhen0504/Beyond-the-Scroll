@@ -124,7 +124,7 @@ public/paintings/jiangshan-qiuse/textures/
 
 场景以原作的屏风、围榻和帐床组织空间。画中没有完整墙顶或建筑平面，因此留白与行走尺度属于艺术转译，不作南唐宅第复原的声明。详细核对、素材与验证说明见 [卷二改造说明](docs/hanxizai-art-direction.md)。
 
-`panorama-detail.jpg` 为同一 Wikimedia Commons 原文件（13,898 × 1,200）；既有 `panorama.jpg` 保持不变。人物保留以 5,200 × 449 为基准的原卷参照范围。透明人物采用内置 imagegen 参照原画提取与补绘，包含遮挡补全和新动作，是艺术转译而非无损原画抠图。高清全卷仅供原卷对照，不作为超宽 GPU 贴图上传。
+`panorama-detail.jpg` 为同一 Wikimedia Commons 原文件（13,898 × 1,200）；既有 `panorama.jpg` 保持不变。人物保留以 5,200 × 449 为基准的原卷参照范围。透明人物参照原画，包含遮挡补全和新动作，是艺术转译而非无损原画抠图。高清全卷仅供原卷对照，不作为超宽 GPU 贴图上传。
 
 夜宴的“暗线”入口提供每折线索、提示和选择反馈；“识席间人”可查看可考人物的生平与关系。末折进入终章，回顾画意、南唐背景及人物结局。史籍叙事、研究推测和创作对白分别标明，出处可在每段下方打开。见 [史料校核](docs/hanxizai-history-notes.md)。
 
@@ -148,7 +148,7 @@ public/paintings/jiangshan-qiuse/textures/
 
 人物测试页已撤下。画卷一人物采用透明绘画素材：村妇坐姿织布、文士有不同面容且衣袖轻动、行旅在白塔旁的临江山坡土路上活动（仅供远观），近处楼阁平台保留两人，钓鱼船在离岸水域。原对白保留。
 
-素材位于 `public/characters/song-lady/`，由内置 image_gen 根据用户参考制作，生成提示已随素材保存。
+仕女试作素材保留在 `public/characters/song-lady/`，包含正、侧、背三视图；素材规格见[说明](public/characters/song-lady/ASSETS.md)。正式画境的人物图集位于 `public/paintings/jiangshan-qiuse/people/`。
 
 画卷一新增四处诗画互动：溪桥文士、亭中文士、山上楼阁主人、钓鱼船中渔夫。靠近并看向人物时按 F，按心情选择诗词，生成当前视角诗画笺；定格截图作为毛玻璃背景，音乐继续播放，按 Esc 或“收笺续游”恢复游览。人物原对白保留，墙体及船棚遮挡时不触发。
 

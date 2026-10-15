@@ -89,6 +89,7 @@ const HangingScroll = forwardRef(function HangingScroll({ painting, index, close
     '--brocade': painting.theme.brocade,
     '--ribbon': painting.theme.ribbon,
     '--tag': painting.theme.tag,
+    '--tag-title-length': Math.max(1, Array.from(painting.title).length),
     '--sway-delay': `${-index * 1.3}s`,
   };
 
