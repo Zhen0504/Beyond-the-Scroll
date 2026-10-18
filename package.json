@@ -1,7 +1,7 @@
 {
   "name": "beyond-the-scroll",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-windows.ps1",
+    "package:submission": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-submission.ps1",
     "test:launcher": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-launcher.ps1"
   },
   "dependencies": {

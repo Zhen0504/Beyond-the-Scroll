@@ -1,0 +1,34 @@
+画中奇谭 · 源码使用说明
+
+本包用于代码查阅、运行和再构建。直接体验作品，请使用总提交包中的“运行版”。
+
+从零启动（以 Windows 为例）
+1. 安装 Node.js：在 nodejs.org 下载安装 LTS 版本，要求版本不低于 22.12，保留默认安装选项。npm 会随之安装。
+2. 将源码版 ZIP 全部解压，打开含 package.json 的文件夹。
+3. 在该文件夹的资源管理器地址栏输入 cmd 并按回车，打开命令提示符。
+4. 输入 npm ci 并按回车，等待依赖安装完成。首次安装需要联网。
+5. 输入 npm run dev 并按回车，浏览器会自动打开作品。
+   如未自动打开，在浏览器输入终端显示的 Local 地址，通常为 http://localhost:5173/。
+   体验时保留命令窗口；结束时在命令窗口按 Ctrl+C 停止服务。
+
+常用命令（均在含 package.json 的文件夹中执行）
+npm test                 运行项目测试
+npm run build            生成网页成品，输出到 dist 文件夹
+npm run preview          预览网页成品，访问终端显示的 Local 地址
+npm run test:launcher    验证 Windows 启动器的本地服务
+npm run package:windows  在 Windows 上重新生成免安装运行包，输出到 release 文件夹
+
+目录速览
+src/                     网页界面、三维场景、剧情、交互与配乐代码
+public/                  随作品发布的画作、人物、纹理和音频素材
+tests/                   项目测试
+tools/launcher/          Windows 一键启动器源码
+tools/                   打包工具及素材研究、场景验证辅助脚本
+docs/                    历史资料、文化解读、素材与设计说明
+README.md                项目整体说明、技术结构及资料出处
+package.json             依赖与运行命令
+package-lock.json        依赖版本锁定文件，请保留
+
+源码包不包含 node_modules、开发缓存、临时截图或 Git 历史。
+使用 npm ci 可按锁定版本安装依赖；直接运行网页不需要 Python 或 Git。
+tools 内的 Python 辅助脚本用于素材研究与开发，不是启动作品所必需的步骤。
